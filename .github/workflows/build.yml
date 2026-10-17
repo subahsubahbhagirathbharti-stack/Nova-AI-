@@ -1,13 +1,20 @@
 name: Build APK
-on: [push, workflow_dispatch]
+
+on: 
+  push:
+  workflow_dispatch:
+
 permissions:
   contents: write
+
 jobs:
   build:
     runs-on: ubuntu-24.04
+
     steps:
       - uses: actions/checkout@v4
-      - name: Unpack NovaAI.zip if it was uploaded
+
+      - name: Unpack NovaAI.zip if uploaded
         run: |
           if [ -f NovaAI.zip ]; then
             unzip -o -q NovaAI.zip -d /tmp/up
@@ -20,20 +27,33 @@ jobs:
             git commit -m "Update from NovaAI.zip" || true
             git push origin HEAD:${{ github.ref_name }} || true
           fi
-      - uses: actions/setup-java@v4
-        with: { distribution: temurin, java-version: 17 }
-      - uses: gradle/actions/setup-gradle@v4
-        with: { gradle-version: 8.7 }
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: 17
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
       - name: Fixed signing key
         run: |
           mkdir -p ~/.android
-          cp debug.keystore ~/.android/debug.keystore
+          cp debug.keystore ~/.android/debug.keystore || true
+
       - name: Android SDK
         run: |
-          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses > /dev/null || true
+          yes | $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --licenses || true
           $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager "platforms;android-34" "build-tools;34.0.0"
-      - run: gradle assembleDebug --no-daemon
-      - uses: actions/upload-artifact@v4
+
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
         with:
           name: NovaAI-apk
           path: app/build/outputs/apk/debug/app-debug.apk

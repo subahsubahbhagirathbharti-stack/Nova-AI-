@@ -29,6 +29,43 @@
             android:layout_marginTop="16dp" android:text="Nova speaks replies aloud"
             android:textColor="@color/text" />
 
+        <androidx.appcompat.widget.SwitchCompat android:id="@+id/natSwitch"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="Natural voice (Gemini) - less robotic"
+            android:textColor="@color/text" />
+
+        <TextView style="@style/Label" android:text="Voice name (Kore, Zephyr, Leda, Aoede, Puck...)" />
+        <EditText android:id="@+id/voiceName" style="@style/Field" android:inputType="text" />
+
+        <TextView style="@style/Label" android:text="Voice model" />
+        <EditText android:id="@+id/ttsModel" style="@style/Field" android:inputType="text" />
+
+        <TextView style="@style/Label" android:text="ElevenLabs API key (best, human-like voice)" />
+        <EditText android:id="@+id/elevenKey" style="@style/Field"
+            android:inputType="textPassword" android:hint="Paste key from elevenlabs.io" />
+
+        <TextView style="@style/Label" android:text="ElevenLabs Voice ID" />
+        <EditText android:id="@+id/elevenVoiceId" style="@style/Field" android:inputType="text"
+            android:hint="e.g. a voice ID from your ElevenLabs account" />
+
+        <TextView style="@style/Label" android:text="ElevenLabs model" />
+        <EditText android:id="@+id/elevenModel" style="@style/Field" android:inputType="text" />
+
+        <TextView style="@style/Label" android:text="Your city (for weather)" />
+        <EditText android:id="@+id/city" style="@style/Field" android:inputType="textCapWords"
+            android:hint="e.g. Delhi" />
+
+        <TextView style="@style/Label" android:text="Listening language (hi-IN, en-IN, en-US)" />
+        <EditText android:id="@+id/listenLang" style="@style/Field" android:inputType="text" />
+
+        <TextView style="@style/Label" android:id="@+id/rateLabel" android:text="Speed (phone voice only)" />
+        <SeekBar android:id="@+id/rate" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:max="15" />
+
+        <TextView style="@style/Label" android:id="@+id/pitchLabel" android:text="Pitch (phone voice only)" />
+        <SeekBar android:id="@+id/pitch" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:max="15" />
+
         <Button android:id="@+id/btnA11y" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="16dp"
             android:text="Enable screen control (Accessibility)" />

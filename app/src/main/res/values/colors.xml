@@ -1,0 +1,8 @@
+<resources>
+    <color name="bg">#0A0A14</color>
+    <color name="panel">#14142A</color>
+    <color name="neon_pink">#FF2E9A</color>
+    <color name="neon_cyan">#00E5FF</color>
+    <color name="text">#E8E8F5</color>
+    <color name="hint">#7C7C99</color>
+</resources>

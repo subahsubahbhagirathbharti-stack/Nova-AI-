@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent" android:layout_height="match_parent"
+    android:background="@drawable/bg_user" android:gravity="center"
+    android:orientation="horizontal" android:padding="8dp">
+    <TextView android:id="@+id/wTalk" android:layout_width="0dp" android:layout_weight="1"
+        android:layout_height="wrap_content" android:gravity="center" android:padding="10dp"
+        android:text="🎙 Talk" android:textColor="#00E5FF" android:textSize="16sp" />
+    <TextView android:id="@+id/wCode" android:layout_width="0dp" android:layout_weight="1"
+        android:layout_height="wrap_content" android:gravity="center" android:padding="10dp"
+        android:text="&lt;/&gt; Code" android:textColor="#FF2E9A" android:textSize="16sp" />
+</LinearLayout>

@@ -63,6 +63,9 @@
         <TextView style="@style/Label" android:text="Listening language (hi-IN, en-IN, en-US)" />
         <EditText android:id="@+id/listenLang" style="@style/Field" android:inputType="text" />
 
+        <TextView style="@style/Label" android:text="Daily brief time (e.g. 07:30, खाली = बंद)" />
+        <EditText android:id="@+id/briefTime" style="@style/Field" android:inputType="text" android:hint="07:30" />
+
         <TextView style="@style/Label" android:id="@+id/rateLabel" android:text="Speed (phone voice only)" />
         <SeekBar android:id="@+id/rate" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:max="15" />
@@ -74,6 +77,15 @@
         <Button android:id="@+id/btnA11y" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="16dp"
             android:text="Enable screen control (Accessibility)" />
+        <TextView style="@style/Label" android:layout_marginTop="16dp" android:text="Permissions (Jarvis control) - एक-एक करके ON करो" />
+        <Button android:id="@+id/btnPermNotif" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Notification access (notifications पढ़ने के लिए)" />
+        <Button android:id="@+id/btnPermBattery" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Battery: Unrestricted (background में चलते रहने के लिए)" />
+        <Button android:id="@+id/btnPermOverlay" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Display over other apps" />
+        <Button android:id="@+id/btnPermApp" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="App info (Allow restricted settings / permissions)" />
         <Button android:id="@+id/btnClear" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:text="Clear chat history" />
         <Button android:id="@+id/btnSave" android:layout_width="match_parent"

@@ -199,6 +199,7 @@ class ListenService : Service() {
                     val local = CommandRouter.handle(this@ListenService, text, prefs.userName)
                     val answer: String = when {
                         local != null -> local
+                        Brief.isAsk(t) -> Brief.build(applicationContext, prefs)
                         Weather.isAsk(t) -> Weather.summaryHi(prefs.city)
                         else -> GeminiClient.chat(applicationContext, db.all(), prefs, false)
                     }

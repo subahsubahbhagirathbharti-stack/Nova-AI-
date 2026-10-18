@@ -39,6 +39,37 @@ class MainActivity : AppCompatActivity() {
         else Toast.makeText(this, "Mic की permission देनी होगी", Toast.LENGTH_LONG).show()
     }
 
+    private var camQuestion = ""
+    private fun shotFile() = java.io.File(java.io.File(cacheDir, "images").apply { mkdirs() }, "nova_shot.jpg")
+    private val takePic = registerForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
+        if (ok) analyzePhoto() else Toast.makeText(this, "फोटो नहीं ली गई", Toast.LENGTH_SHORT).show()
+    }
+
+    private fun loadScaledJpeg(f: java.io.File): ByteArray? {
+        if (!f.exists() || f.length() == 0L) return null
+        val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeFile(f.path, o)
+        var sample = 1
+        while (o.outWidth / sample > 1600 || o.outHeight / sample > 1600) sample *= 2
+        val bmp = android.graphics.BitmapFactory.decodeFile(f.path, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample })
+            ?: return null
+        val out = java.io.ByteArrayOutputStream()
+        bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out)
+        bmp.recycle()
+        return out.toByteArray()
+    }
+
+    private fun analyzePhoto() {
+        addMsg(Msg("user", "📷 " + camQuestion))
+        applyState("thinking")
+        lifecycleScope.launch {
+            val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadScaledJpeg(shotFile()) }
+            val r = if (bytes == null) "फोटो नहीं मिली, फिर से कोशिश करो।" else GeminiClient.vision(prefs, bytes, camQuestion)
+            applyState(if (ListenService.running) ListenService.lastState else "idle")
+            reply(r)
+        }
+    }
+
     override fun onCreate(s: Bundle?) {
         super.onCreate(s)
         setContentView(R.layout.activity_main)
@@ -61,6 +92,18 @@ class MainActivity : AppCompatActivity() {
             val t = input.text.toString().trim()
             if (t.isNotEmpty()) { input.text.clear(); submit(t) }
         }
+        findViewById<Button>(R.id.btnCam).setOnClickListener {
+            val q = input.text.toString().trim()
+            camQuestion = if (q.isEmpty()) "इसमें क्या है? हिंदी में बताओ।" else q
+            input.text.clear()
+            try {
+                val uri = androidx.core.content.FileProvider.getUriForFile(this, "$packageName.files", shotFile())
+                takePic.launch(uri)
+            } catch (e: Exception) {
+                Toast.makeText(this, "Camera नहीं खुल पाया", Toast.LENGTH_LONG).show()
+            }
+        }
+        Brief.schedule(this, prefs)
         mic.setOnClickListener { speaker.stop(); toggleListening() }
         findViewById<Button>(R.id.btnSettings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
@@ -73,6 +116,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun handleIntent(i: Intent) {
         if (i.getBooleanExtra("code", false)) codeSwitch.isChecked = true
+        if (i.getBooleanExtra("brief", false)) { i.removeExtra("brief"); lifecycleScope.launch { reply(Brief.build(applicationContext, prefs)) } }
         if (i.getBooleanExtra("voice", false) && !ListenService.running) toggleListening()
     }
 
@@ -123,6 +167,10 @@ class MainActivity : AppCompatActivity() {
         addMsg(Msg("user", text))
         val local = CommandRouter.handle(this, text, prefs.userName)
         if (local != null) { reply(local); return }
+        if (Brief.isAsk(text.lowercase())) {
+            lifecycleScope.launch { reply(Brief.build(applicationContext, prefs)) }
+            return
+        }
         if (Weather.isAsk(text.lowercase())) {
             lifecycleScope.launch { reply(Weather.summaryHi(prefs.city)) }
             return
@@ -161,7 +209,6 @@ class MainActivity : AppCompatActivity() {
     override fun onPause() {
         ListenService.onState = null
         ListenService.onChange = null
-        speaker.stop()
         super.onPause()
     }
 

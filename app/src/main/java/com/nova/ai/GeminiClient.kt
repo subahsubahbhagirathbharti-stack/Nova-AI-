@@ -80,6 +80,33 @@ Keep the warm tone to one short line at most."""
         return last
     }
 
+    /** Looks at a photo and answers a question about it (Gemini vision). */
+    suspend fun vision(prefs: Prefs, jpeg: ByteArray, question: String): String = withContext(Dispatchers.IO) {
+        if (prefs.apiKey.isBlank()) return@withContext "पहले Settings में Gemini key डालो।"
+        try {
+            val b64 = Base64.encodeToString(jpeg, Base64.NO_WRAP)
+            val sys = "तुम Nova हो, एक प्यारी और समझदार लड़की। फोटो देखकर हिंदी में छोटा और साफ़ जवाब दो (स्त्रीलिंग क्रियाएँ), कोई bullet list नहीं।"
+            val parts = JSONArray()
+                .put(JSONObject().put("inline_data", JSONObject().put("mime_type", "image/jpeg").put("data", b64)))
+                .put(JSONObject().put("text", question))
+            val body = JSONObject()
+                .put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", sys))))
+                .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", parts)))
+                .put("generationConfig", JSONObject().put("maxOutputTokens", prefs.maxTokens))
+            val models = listOf(prefs.model, "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3.7-flash", "gemini-flash-latest")
+            val resp = postSmart(models, prefs.apiKey, body, 60000).second
+            val j = JSONObject(resp)
+            if (j.has("error")) return@withContext "Gemini error: " + j.getJSONObject("error").optString("message")
+            val ps = j.getJSONArray("candidates").getJSONObject(0).optJSONObject("content")?.optJSONArray("parts")
+                ?: return@withContext "(फोटो पर कोई जवाब नहीं मिला।)"
+            val sb = StringBuilder()
+            for (i in 0 until ps.length()) sb.append(ps.getJSONObject(i).optString("text"))
+            sb.toString().trim().ifEmpty { "(फोटो पर कोई जवाब नहीं मिला।)" }
+        } catch (e: Exception) {
+            "Network problem: " + (e.message ?: "")
+        }
+    }
+
     private fun tools(): JSONArray = JSONArray().put(JSONObject().put("functionDeclarations", JSONArray().put(
         JSONObject().put("name", "run_command")
             .put("description", "Run ONE command on the user's Android phone. Allowed formats: open <app> | play <song> | search <query> | alarm 7:30 am | timer 5 minutes | torch on | torch off | volume up | volume down | volume max | volume mute | call <number> | whatsapp <number> <text> | wifi settings | bluetooth settings | read screen | weather | scroll up | scroll down | auto scroll | stop scroll | click <visible text> | tap <x> <y> | swipe up | swipe down | go back | go home | remember <fact>")

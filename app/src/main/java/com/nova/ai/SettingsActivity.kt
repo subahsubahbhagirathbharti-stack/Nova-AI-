@@ -1,6 +1,7 @@
 package com.nova.ai
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.provider.Settings
 import android.widget.*
@@ -29,6 +30,7 @@ class SettingsActivity : AppCompatActivity() {
         val user = findViewById<EditText>(R.id.userName).apply { setText(p.userName) }
         val city = findViewById<EditText>(R.id.city).apply { setText(p.city) }
         val lang = findViewById<EditText>(R.id.listenLang).apply { setText(p.listenLang) }
+        val briefT = findViewById<EditText>(R.id.briefTime).apply { setText(p.briefTime) }
         val tts = findViewById<SwitchCompat>(R.id.ttsSwitch).apply { isChecked = p.speak }
         val eKey = findViewById<EditText>(R.id.elevenKey).apply { setText(p.elevenKey) }
         val eVoice = findViewById<EditText>(R.id.elevenVoiceId).apply { setText(p.elevenVoiceId) }
@@ -55,6 +57,19 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnA11y).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
         }
+        fun openScreen(i: Intent) {
+            try { startActivity(i) } catch (e: Exception) { Toast.makeText(this, "ये screen इस फोन पर नहीं खुली", Toast.LENGTH_LONG).show() }
+        }
+        findViewById<Button>(R.id.btnPermNotif).setOnClickListener { openScreen(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
+        findViewById<Button>(R.id.btnPermBattery).setOnClickListener {
+            openScreen(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
+        }
+        findViewById<Button>(R.id.btnPermOverlay).setOnClickListener {
+            openScreen(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
+        }
+        findViewById<Button>(R.id.btnPermApp).setOnClickListener {
+            openScreen(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+        }
         findViewById<Button>(R.id.btnClear).setOnClickListener {
             ChatDb(this).clear(); Toast.makeText(this, "History cleared", Toast.LENGTH_SHORT).show()
         }
@@ -66,6 +81,8 @@ class SettingsActivity : AppCompatActivity() {
             p.userName = user.text.toString().trim().ifEmpty { "love" }
             p.city = city.text.toString().trim()
             p.listenLang = lang.text.toString().trim().ifEmpty { "hi-IN" }
+            p.briefTime = briefT.text.toString().trim()
+            Brief.schedule(this, p)
             p.speak = tts.isChecked
             p.elevenKey = eKey.text.toString().trim()
             p.elevenVoiceId = eVoice.text.toString().trim()

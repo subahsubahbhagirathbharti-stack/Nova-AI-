@@ -29,6 +29,11 @@ object CommandRouter {
         "बाएं स्वाइप करो" to "swipe left", "दाएं स्वाइप करो" to "swipe right",
         "ऑटो स्क्रॉल" to "auto scroll", "ऑटो स्क्रॉल चालू करो" to "auto scroll",
         "ऑटो स्क्रॉल बंद करो" to "stop scroll", "स्क्रॉल बंद करो" to "stop scroll", "स्क्रॉल रोको" to "stop scroll",
+        "नोटिफिकेशन पढ़ो" to "read notifications", "नोटिफिकेशन सुनाओ" to "read notifications",
+        "notification पढ़ो" to "read notifications", "notifications पढ़ो" to "read notifications",
+        "notification padho" to "read notifications", "notifications padho" to "read notifications",
+        "मैसेज पढ़ो" to "read notifications", "मेरे नोटिफिकेशन बताओ" to "read notifications",
+        "read my notifications" to "read notifications",
         "टॉर्च जलाओ" to "torch on", "टॉर्च बंद करो" to "torch off", "स्क्रीन पढ़ो" to "read screen"
     )
 
@@ -116,6 +121,17 @@ object CommandRouter {
                 else -> Settings.ACTION_BATTERY_SAVER_SETTINGS
             }
             return start(ctx, Intent(action), "${it.groupValues[1]} settings खोल रही हूँ।")
+        }
+
+        // ---- read notifications (needs Notification access) ----
+        if (t == "read notifications") {
+            if (NovaNotificationService.instance == null) {
+                return start(ctx, Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS),
+                    "Notification पढ़ने के लिए Nova AI को Notification access देना होगा, $name। Settings खोल रही हूँ।")
+            }
+            val list = NovaNotificationService.latest(5)
+            return if (list.isEmpty()) "अभी कोई नई notification नहीं है, $name।"
+            else "ये रहीं तुम्हारी ताज़ा notifications। " + list.joinToString(" । ")
         }
 
         // ---- read screen ----

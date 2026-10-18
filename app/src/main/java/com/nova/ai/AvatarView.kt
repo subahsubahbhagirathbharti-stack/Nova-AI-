@@ -1,6 +1,8 @@
 package com.nova.ai
 
 import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.Path
@@ -23,6 +25,13 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
     private val path = Path()
     private val r = RectF()
     private val t0 = System.nanoTime()
+    private val dst = RectF()
+    private val bmpPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val photo: Bitmap? = try {
+        BitmapFactory.decodeResource(resources, R.drawable.nova_avatar)
+    } catch (e: Throwable) {
+        null
+    }
 
     private fun fill(color: Int, alpha: Int = 255) {
         p.style = Paint.Style.FILL
@@ -65,6 +74,25 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
             c.drawCircle(cx, Y(48f), (46f - i * 6f) * u * pulse, p)
         }
 
+        val pic = photo
+        if (pic != null) {
+            var h2 = 94f * u
+            var w2 = h2 * pic.width / pic.height
+            if (w2 > width - 8f) { w2 = width - 8f; h2 = w2 * pic.height / pic.width }
+            val sc = if (speaking) 1f + 0.012f * sin(t * 8f) else 1f
+            val left = cx - w2 / 2f
+            val top = y0 + (100f * u - h2) / 2f + bob
+            dst.set(left, top, left + w2, top + h2)
+            c.save()
+            c.scale(sc, sc, cx, top + h2 / 2f)
+            path.reset()
+            path.addRoundRect(dst, 4f * u, 4f * u, Path.Direction.CW)
+            c.clipPath(path)
+            c.drawBitmap(pic, null, dst, bmpPaint)
+            c.restore()
+            stroke(glow, 0.8f * u, if (speaking) (150 + 100 * (0.5f + 0.5f * sin(t * 8f))).toInt() else 170)
+            c.drawRoundRect(dst, 4f * u, 4f * u, p)
+        } else {
         // back hair + twin tails
         fill(hairDark)
         r.set(X(-27f), Y(12f), X(27f), Y(60f)); c.drawOval(r, p)
@@ -141,6 +169,8 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
         fill(0xFF8A5CFF.toInt())
         c.drawCircle(X(-18f), Y(24f), 2.2f * u, p)
         c.drawCircle(X(18f), Y(24f), 2.2f * u, p)
+
+        }
 
         // state effects
         when (mode) {

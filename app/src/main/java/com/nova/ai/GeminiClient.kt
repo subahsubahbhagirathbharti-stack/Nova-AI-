@@ -10,6 +10,8 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 object GeminiClient {
+    @Volatile var lastTtsError: String = ""
+
     private const val BASE = "https://generativelanguage.googleapis.com/v1beta/models/"
 
     private fun persona(name: String, memories: String): String {
@@ -163,13 +165,18 @@ Keep the warm tone to one short line at most."""
                 code = r.first; resp = r.second
                 if (code in 200..299) break
             }
-            if (code !in 200..299) return@withContext null
+            if (code !in 200..299) {
+                lastTtsError = "HTTP $code " + (try { JSONObject(resp).getJSONObject("error").optString("message").take(90) } catch (e: Exception) { "" })
+                return@withContext null
+            }
+            lastTtsError = ""
             val part = JSONObject(resp).getJSONArray("candidates").getJSONObject(0)
                 .getJSONObject("content").getJSONArray("parts").getJSONObject(0)
             val inline = part.optJSONObject("inlineData") ?: part.optJSONObject("inline_data")
-                ?: return@withContext null
+                ?: run { lastTtsError = "no audio in reply"; return@withContext null }
             Base64.decode(inline.getString("data"), Base64.DEFAULT)
         } catch (e: Exception) {
+            lastTtsError = e.javaClass.simpleName + " " + (e.message ?: "").take(60)
             null
         }
     }

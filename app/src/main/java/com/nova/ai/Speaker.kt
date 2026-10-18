@@ -35,6 +35,8 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
     private var player: MediaPlayer? = null
     private var mp3Resume: (() -> Unit)? = null
     private var gen = 0
+    var onInfo: ((String) -> Unit)? = null
+    private fun info(m: String) { handler.post { onInfo?.invoke(m) } }
 
     init {
         tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
@@ -54,7 +56,7 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
         val start: () -> Unit = { if (my == gen) onStart() }
         val netVoice = (prefs.elevenKey.isNotBlank() && prefs.elevenVoiceId.isNotBlank()) ||
             (prefs.naturalVoice && prefs.apiKey.isNotBlank())
-        if (!netVoice) { system(text, start, finish); return }
+        if (!netVoice || text.length <= 45) { system(text, start, finish); return }
         scope.launch {
             val chunks = splitChunks(text)
             var pending: Deferred<Audio?> = async { genAudio(chunks[0]) }
@@ -65,6 +67,8 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
                 if (i + 1 < chunks.size) pending = async { genAudio(chunks[i + 1]) }
                 if (a == null) {
                     if (i + 1 < chunks.size) pending.cancel()
+                    val why = GeminiClient.lastTtsError
+                    info("Natural voice failed" + (if (why.isNotBlank()) " ($why)" else "") + " -> phone voice")
                     system(chunks.drop(i).joinToString(" "), start, finish)
                     return@launch
                 }
@@ -111,9 +115,13 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
     }
 
     private fun system(text: String, start: () -> Unit, finish: () -> Unit) {
-        if (!ready) { finish(); return }
+        if (!ready) { info("Phone voice engine not ready. Install/enable Google Text-to-speech in phone Settings."); finish(); return }
         val hindi = text.any { it in '\u0900'..'\u097F' }
-        tts.setLanguage(if (hindi) Locale("hi", "IN") else Locale.getDefault())
+        val lr = tts.setLanguage(if (hindi) Locale("hi", "IN") else Locale.getDefault())
+        if (lr == TextToSpeech.LANG_MISSING_DATA || lr == TextToSpeech.LANG_NOT_SUPPORTED) {
+            info("Hindi voice data missing. Settings > Text-to-speech > install Hindi voice data.")
+            tts.setLanguage(Locale.getDefault())
+        }
         tts.setPitch(prefs.pitch)
         tts.setSpeechRate(prefs.rate)
         pendingFinish = finish

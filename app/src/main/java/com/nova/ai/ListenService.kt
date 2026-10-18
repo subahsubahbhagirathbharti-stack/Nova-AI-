@@ -55,6 +55,7 @@ class ListenService : Service() {
         prefs = Prefs(this)
         db = ChatDb(this)
         speaker = Speaker(this, prefs)
+        speaker.onInfo = { m -> android.widget.Toast.makeText(applicationContext, m, android.widget.Toast.LENGTH_LONG).show() }
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "nova:listen").apply { acquire(2 * 60 * 60 * 1000L) }
         busy = true
@@ -101,13 +102,24 @@ class ListenService : Service() {
             override fun onRmsChanged(v: Float) {}
             override fun onBufferReceived(b: ByteArray?) {}
             override fun onEndOfSpeech() {}
-            override fun onPartialResults(b: Bundle?) {}
+            override fun onPartialResults(b: Bundle?) {
+                // Instant wake: as soon as the partial text is just "Nova", answer without waiting for silence.
+                if (busy || !prefs.wakeMode || System.currentTimeMillis() <= awakeUntil) return
+                val pt = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: return
+                val bare = pt.lowercase().replace(Regex("[\\s,.!?।-]+"), "")
+                if (wakeWords.any { bare == it }) {
+                    recognizer?.destroy()
+                    recognizer = null
+                    handle(pt)
+                }
+            }
             override fun onEvent(t: Int, b: Bundle?) {}
             override fun onError(e: Int) {
                 if (e == SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS) { stopSelf(); return }
                 relisten(if (e == SpeechRecognizer.ERROR_RECOGNIZER_BUSY) 1200L else 300L)
             }
             override fun onResults(b: Bundle?) {
+                if (busy) return
                 val t = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull()
                 if (t.isNullOrBlank()) relisten(200L) else handle(t)
             }
@@ -115,7 +127,9 @@ class ListenService : Service() {
         val i = Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM)
             .putExtra(RecognizerIntent.EXTRA_LANGUAGE, prefs.listenLang)
-            .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false)
+            .putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, true)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_COMPLETE_SILENCE_LENGTH_MILLIS, 900L)
+            .putExtra(RecognizerIntent.EXTRA_SPEECH_INPUT_POSSIBLY_COMPLETE_SILENCE_LENGTH_MILLIS, 700L)
         r.startListening(i)
         state("listening")
     }

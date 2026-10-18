@@ -40,8 +40,8 @@
         </LinearLayout>
     </LinearLayout>
 
-    <com.nova.ai.ArcReactorView android:id="@+id/reactor"
-        android:layout_width="match_parent" android:layout_height="170dp" />
+    <com.nova.ai.AvatarView android:id="@+id/reactor"
+        android:layout_width="match_parent" android:layout_height="250dp" />
 
     <TextView android:id="@+id/status" android:layout_width="match_parent"
         android:layout_height="wrap_content" android:gravity="center" android:text="STANDBY"

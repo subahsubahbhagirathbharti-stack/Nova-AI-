@@ -27,7 +27,7 @@ class MainActivity : AppCompatActivity() {
     private lateinit var adapter: ChatAdapter
     private lateinit var list: RecyclerView
     private lateinit var codeSwitch: SwitchCompat
-    private lateinit var reactor: ArcReactorView
+    private lateinit var reactor: AvatarView
     private lateinit var status: TextView
     private lateinit var mic: Button
     private lateinit var weather: TextView
@@ -44,6 +44,7 @@ class MainActivity : AppCompatActivity() {
         setContentView(R.layout.activity_main)
         db = ChatDb(this); prefs = Prefs(this)
         speaker = Speaker(this, prefs)
+        speaker.onInfo = { m -> android.widget.Toast.makeText(applicationContext, m, android.widget.Toast.LENGTH_LONG).show() }
         msgs.addAll(db.all())
         list = findViewById(R.id.chatList)
         list.layoutManager = LinearLayoutManager(this).apply { stackFromEnd = true }

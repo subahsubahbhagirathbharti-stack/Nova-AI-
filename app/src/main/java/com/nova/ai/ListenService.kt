@@ -42,6 +42,8 @@ class ListenService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var wake: PowerManager.WakeLock? = null
     private var busy = false
+    private var awakeUntil = 0L
+    private val wakeWords = listOf("nova", "नोवा", "नॉवा", "नोवाह", "novah")
 
     override fun onBind(i: Intent?): IBinder? = null
 
@@ -57,7 +59,7 @@ class ListenService : Service() {
         wake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "nova:listen").apply { acquire(2 * 60 * 60 * 1000L) }
         busy = true
         state("speaking")
-        speaker.speak("हाँ ${prefs.userName}, मैं सुन रही हूँ।", scope, true) { busy = false; listen() }
+        speaker.speak("हाँ ${prefs.userName}, मैं सुन रही हूँ।", scope, true) { busy = false; awakeUntil = System.currentTimeMillis() + 20000L; listen() }
         return START_NOT_STICKY
     }
 
@@ -70,7 +72,7 @@ class ListenService : Service() {
         val open = PendingIntent.getActivity(this, 1, Intent(this, MainActivity::class.java), PendingIntent.FLAG_IMMUTABLE)
         val n = NotificationCompat.Builder(this, chId)
             .setContentTitle("Nova सुन रही है")
-            .setContentText("रोकने के लिए बोलो \"नोवा बंद\" या Stop दबाओ")
+            .setContentText("जगाने के लिए बोलो \"नोवा\" · रोकने के लिए \"नोवा बंद\" या Stop")
             .setSmallIcon(android.R.drawable.ic_btn_speak_now)
             .setOngoing(true)
             .setContentIntent(open)
@@ -131,8 +133,36 @@ class ListenService : Service() {
 
     private fun stopWord(t: String) = t in setOf("stop", "ruko", "रुको", "रुक जाओ", "ruk jao", "बस", "रुक")
 
-    private fun handle(text: String) {
+    private fun handle(raw: String) {
         busy = true
+        val tRaw = raw.trim().lowercase()
+        var text = raw.trim()
+        if (prefs.wakeMode) {
+            val now = System.currentTimeMillis()
+            val hit = wakeWords.firstOrNull { tRaw.contains(it) }
+            if (hit == null && now > awakeUntil) {
+                // Nobody called Nova: ignore and keep waiting quietly.
+                busy = false
+                relisten(100L)
+                return
+            }
+            if (hit != null) {
+                text = text.replace(Regex(Regex.escape(hit), RegexOption.IGNORE_CASE), " ")
+                    .replace(Regex("^[\\s,.!?।-]+|[\\s,.!?।-]+$"), "")
+                    .trim()
+                if (text.isBlank() && !stopListenPhrase(tRaw)) {
+                    awakeUntil = now + 20000L
+                    state("thinking")
+                    speaker.speak("हाँ, बोलो।", scope, true, onStart = { state("speaking") }) {
+                        busy = false
+                        awakeUntil = System.currentTimeMillis() + 20000L
+                        relisten(100L)
+                    }
+                    return
+                }
+                if (text.isBlank()) text = raw.trim()
+            }
+        }
         val t = text.trim().lowercase()
         db.add(Msg("user", text))
         changed()
@@ -141,7 +171,7 @@ class ListenService : Service() {
                 NovaAccessibilityService.instance?.stopAuto()
                 finishTurn("", speak = false)
             }
-            stopListenPhrase(t) -> finishTurn("ठीक है, मैं बंद हो रही हूँ। जब बुलाना हो, बटन दबा देना।", stopAfter = true)
+            stopListenPhrase(tRaw) -> finishTurn("ठीक है, मैं बंद हो रही हूँ। जब बुलाना हो, बटन दबा देना।", stopAfter = true)
             stopWord(t) -> {
                 NovaAccessibilityService.instance?.stopAuto()
                 speaker.stop()
@@ -174,9 +204,9 @@ class ListenService : Service() {
                 "अभी कुछ गड़बड़ हो गई, फिर से बोलो।"
             else -> answer
         }
-        if (spoken.isNotBlank()) state("speaking")
-        speaker.speak(spoken, scope, true) {
+        speaker.speak(spoken, scope, true, onStart = { state("speaking") }) {
             busy = false
+            awakeUntil = System.currentTimeMillis() + 20000L
             if (stopAfter) stopSelf() else relisten(100L)
         }
     }

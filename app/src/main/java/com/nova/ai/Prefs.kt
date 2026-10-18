@@ -10,6 +10,7 @@ class Prefs(ctx: Context) {
     var maxTokens: Int get() = sp.getInt("max", 2048); set(v) = sp.edit().putInt("max", v).apply()
     var userName: String get() = sp.getString("user", "love") ?: "love"; set(v) = sp.edit().putString("user", v).apply()
     var speak: Boolean get() = sp.getBoolean("tts", false); set(v) = sp.edit().putBoolean("tts", v).apply()
+    var wakeMode: Boolean get() = sp.getBoolean("wakeword", true); set(v) = sp.edit().putBoolean("wakeword", v).apply()
     var naturalVoice: Boolean get() = sp.getBoolean("nat", true); set(v) = sp.edit().putBoolean("nat", v).apply()
     var voiceName: String get() = sp.getString("vname", "Kore") ?: "Kore"; set(v) = sp.edit().putString("vname", v).apply()
     var ttsModel: String get() = sp.getString("tmodel", "gemini-3.8-flash-tts") ?: "gemini-3.8-flash-tts"; set(v) = sp.edit().putString("tmodel", v).apply()

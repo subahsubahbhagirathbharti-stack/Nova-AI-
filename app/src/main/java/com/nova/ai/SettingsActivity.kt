@@ -33,6 +33,7 @@ class SettingsActivity : AppCompatActivity() {
         val eKey = findViewById<EditText>(R.id.elevenKey).apply { setText(p.elevenKey) }
         val eVoice = findViewById<EditText>(R.id.elevenVoiceId).apply { setText(p.elevenVoiceId) }
         val eModel = findViewById<EditText>(R.id.elevenModel).apply { setText(p.elevenModel) }
+        val wakeSw = findViewById<SwitchCompat>(R.id.wakeSwitch).apply { isChecked = p.wakeMode }
         val nat = findViewById<SwitchCompat>(R.id.natSwitch).apply { isChecked = p.naturalVoice }
         val vname = findViewById<EditText>(R.id.voiceName).apply { setText(p.voiceName) }
         val tmodel = findViewById<EditText>(R.id.ttsModel).apply { setText(p.ttsModel) }
@@ -69,6 +70,7 @@ class SettingsActivity : AppCompatActivity() {
             p.elevenKey = eKey.text.toString().trim()
             p.elevenVoiceId = eVoice.text.toString().trim()
             p.elevenModel = eModel.text.toString().trim().ifEmpty { "eleven_multilingual_v2" }
+            p.wakeMode = wakeSw.isChecked
             p.naturalVoice = nat.isChecked
             p.voiceName = vname.text.toString().trim().ifEmpty { "Kore" }
             p.ttsModel = tmodel.text.toString().trim().ifEmpty { "gemini-3.8-flash-tts" }

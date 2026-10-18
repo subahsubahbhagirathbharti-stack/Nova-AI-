@@ -14,6 +14,7 @@ object Weather {
     private var cachedKey = ""
     private var cachedAt = 0L
     private var cached: W? = null
+    var lastErr = ""
 
     fun isAsk(t: String): Boolean = t.contains("weather") || t.contains("मौसम") || t.contains("mausam")
 
@@ -48,11 +49,12 @@ object Weather {
     suspend fun fetch(city: String): W? = withContext(Dispatchers.IO) {
         try {
             val key = city.trim().lowercase()
+            lastErr = ""
             if (key.isEmpty()) return@withContext null
             if (key == cachedKey && cached != null && System.currentTimeMillis() - cachedAt < 15 * 60 * 1000L) return@withContext cached
-            val g = get("https://geocoding-api.open-meteo.com/v1/search?count=1&name=" + URLEncoder.encode(city.trim(), "UTF-8"))
-                ?: return@withContext null
-            val results = JSONObject(g).optJSONArray("results") ?: return@withContext null
+            val g = get("https://geocoding-api.open-meteo.com/v1/search?count=1&language=en&format=json&name=" + URLEncoder.encode(city.substringBefore(",").trim(), "UTF-8"))
+                ?: run { lastErr = "net"; return@withContext null }
+            val results = JSONObject(g).optJSONArray("results") ?: run { lastErr = "city"; return@withContext null }
             val loc = results.getJSONObject(0)
             val w = get("https://api.open-meteo.com/v1/forecast?latitude=" + loc.getDouble("latitude") +
                 "&longitude=" + loc.getDouble("longitude") +
@@ -72,7 +74,7 @@ object Weather {
 
     suspend fun hud(city: String): String {
         if (city.isBlank()) return "Set city in ⚙"
-        val w = fetch(city) ?: return "Weather offline"
+        val w = fetch(city) ?: return if (lastErr == "city") "City not found" else "Weather offline"
         return "%.0f°C · %s".format(w.temp, cond(w.code).first)
     }
 

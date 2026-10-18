@@ -61,13 +61,17 @@ Keep the warm tone to one short line at most."""
             r.contains("unexpected model name") || r.contains("not found")
     }
 
-    /** Tries each model in order, retrying once on busy/removed errors, so a busy or retired model never blocks Nova. */
+    /** Tries each model in order. Busy -> retry once; quota/removed -> straight to the next model. */
     private fun postSmart(models: List<String>, key: String, body: JSONObject, readTimeout: Int): Pair<Int, String> {
         var last: Pair<Int, String> = 0 to "{\"error\":{\"message\":\"No usable model name set.\"}}"
         for (m in models.map { cleanModel(it) }.filter { it.isNotEmpty() }.distinct()) {
             for (attempt in 0 until 2) {
                 last = post(m, key, body, readTimeout)
                 if (!isBusy(last.first, last.second)) return last
+                val r = last.second.lowercase()
+                val skip = last.first == 429 || last.first == 404 || r.contains("quota") ||
+                    r.contains("no longer available") || r.contains("unexpected model name") || r.contains("not found")
+                if (skip) break
                 if (attempt == 0) Thread.sleep(1500)
             }
         }
@@ -85,11 +89,12 @@ Keep the warm tone to one short line at most."""
     suspend fun chat(ctx: Context, history: List<Msg>, prefs: Prefs, codeMode: Boolean): String = withContext(Dispatchers.IO) {
         if (prefs.apiKey.isBlank()) return@withContext "I need your Gemini API key first, ${prefs.userName} 💙 Open ⚙ Settings and paste it in."
         val contents = JSONArray()
-        history.takeLast(20).dropWhile { it.role != "user" }.forEach {
+        history.takeLast(12).dropWhile { it.role != "user" }.forEach {
             contents.put(JSONObject().put("role", it.role)
                 .put("parts", JSONArray().put(JSONObject().put("text", it.text))))
         }
         val sys = persona(prefs.userName, prefs.memories) + if (codeMode) CODE_MODE else ""
+        var thinkCfg = true // ask the model to think less (faster); dropped automatically if unsupported
         try {
             for (step in 0 until 6) {
                 val body = JSONObject()
@@ -98,8 +103,14 @@ Keep the warm tone to one short line at most."""
                     .put("tools", tools())
                     .put("generationConfig", JSONObject()
                         .put("temperature", prefs.temperature.toDouble())
-                        .put("maxOutputTokens", prefs.maxTokens))
-                val (_, resp) = postSmart(listOf(prefs.model, "gemini-3.8-flash", "gemini-3.7-flash", "gemini-flash-latest"), prefs.apiKey, body, 60000)
+                        .put("maxOutputTokens", prefs.maxTokens)
+                        .also { if (thinkCfg) it.put("thinkingConfig", JSONObject().put("thinkingLevel", "low")) })
+                var (_, resp) = postSmart(listOf(prefs.model, "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-flash-latest"), prefs.apiKey, body, 60000)
+                if (thinkCfg && resp.contains("\"error\"") && resp.lowercase().contains("thinking")) {
+                    thinkCfg = false
+                    body.getJSONObject("generationConfig").remove("thinkingConfig")
+                    resp = postSmart(listOf(prefs.model, "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-flash-latest"), prefs.apiKey, body, 60000).second
+                }
                 val j = JSONObject(resp)
                 if (j.has("error")) return@withContext "Gemini error: " + j.getJSONObject("error").optString("message")
                 val content = j.getJSONArray("candidates").getJSONObject(0).optJSONObject("content")
@@ -145,7 +156,13 @@ Keep the warm tone to one short line at most."""
                     .put("responseModalities", JSONArray().put("AUDIO"))
                     .put("speechConfig", JSONObject().put("voiceConfig", JSONObject()
                         .put("prebuiltVoiceConfig", JSONObject().put("voiceName", prefs.voiceName)))))
-            val (code, resp) = postSmart(listOf(prefs.ttsModel, "gemini-3.8-flash-tts"), prefs.apiKey, body, 60000)
+            var code = 0
+            var resp = ""
+            for (m in listOf(prefs.ttsModel, "gemini-3.8-flash-tts").map { cleanModel(it) }.filter { it.isNotEmpty() }.distinct()) {
+                val r = post(m, prefs.apiKey, body, 12000)
+                code = r.first; resp = r.second
+                if (code in 200..299) break
+            }
             if (code !in 200..299) return@withContext null
             val part = JSONObject(resp).getJSONArray("candidates").getJSONObject(0)
                 .getJSONObject("content").getJSONArray("parts").getJSONObject(0)

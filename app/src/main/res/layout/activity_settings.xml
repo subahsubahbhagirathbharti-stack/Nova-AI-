@@ -29,6 +29,11 @@
             android:layout_marginTop="16dp" android:text="Nova speaks replies aloud"
             android:textColor="@color/text" />
 
+        <androidx.appcompat.widget.SwitchCompat android:id="@+id/wakeSwitch"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="Wake word: बोलो Nova या नोवा तब जवाब दूँगी"
+            android:textColor="@color/text" />
+
         <androidx.appcompat.widget.SwitchCompat android:id="@+id/natSwitch"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="8dp" android:text="Natural voice (Gemini) - less robotic"

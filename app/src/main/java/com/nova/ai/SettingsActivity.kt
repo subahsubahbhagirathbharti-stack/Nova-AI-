@@ -59,7 +59,7 @@ class SettingsActivity : AppCompatActivity() {
         }
         findViewById<Button>(R.id.btnSave).setOnClickListener {
             p.apiKey = key.text.toString().trim()
-            p.model = model.text.toString().trim().ifEmpty { "gemini-2.5-flash" }
+            p.model = model.text.toString().trim().ifEmpty { "gemini-3.8-flash" }
             p.temperature = temp.progress / 10f
             p.maxTokens = max.text.toString().toIntOrNull()?.coerceIn(64, 8192) ?: 2048
             p.userName = user.text.toString().trim().ifEmpty { "love" }
@@ -71,7 +71,7 @@ class SettingsActivity : AppCompatActivity() {
             p.elevenModel = eModel.text.toString().trim().ifEmpty { "eleven_multilingual_v2" }
             p.naturalVoice = nat.isChecked
             p.voiceName = vname.text.toString().trim().ifEmpty { "Kore" }
-            p.ttsModel = tmodel.text.toString().trim().ifEmpty { "gemini-3.1-flash-tts-preview" }
+            p.ttsModel = tmodel.text.toString().trim().ifEmpty { "gemini-3.8-flash-tts" }
             p.rate = (rate.progress + 5) / 10f
             p.pitch = (pitch.progress + 5) / 10f
             Toast.makeText(this, "Saved 💙", Toast.LENGTH_SHORT).show(); finish()

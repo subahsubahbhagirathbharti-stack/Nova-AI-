@@ -101,7 +101,7 @@ class MainActivity : AppCompatActivity() {
             "speaking" -> "SPEAKING…"
             else -> "STANDBY"
         }
-        mic.text = if (ListenService.running) "⏹" else "🎙"
+        mic.text = if (ListenService.running) "STOP" else "MIC"
     }
 
     private fun addMsg(m: Msg) {

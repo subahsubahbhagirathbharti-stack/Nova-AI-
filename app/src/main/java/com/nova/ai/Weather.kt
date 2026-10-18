@@ -17,7 +17,9 @@ object Weather {
 
     fun isAsk(t: String): Boolean = t.contains("weather") || t.contains("मौसम") || t.contains("mausam")
 
-    private fun get(u: String): String? = try {
+    private fun get(u: String): String? = getOnce(u) ?: getOnce(u)
+
+    private fun getOnce(u: String): String? = try {
         val c = URL(u).openConnection() as HttpURLConnection
         c.connectTimeout = 10000
         c.readTimeout = 10000

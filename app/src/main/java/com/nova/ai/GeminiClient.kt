@@ -51,6 +51,29 @@ Keep the warm tone to one short line at most."""
         }
     }
 
+    private fun cleanModel(m: String) = m.trim().removePrefix("models/").trim()
+
+    private fun isBusy(code: Int, resp: String): Boolean {
+        if (code in 200..299) return false
+        val r = resp.lowercase()
+        return code == 429 || code == 500 || code == 503 || code == 504 || code == 404 ||
+            r.contains("high demand") || r.contains("overloaded") || r.contains("no longer available") ||
+            r.contains("unexpected model name") || r.contains("not found")
+    }
+
+    /** Tries each model in order, retrying once on busy/removed errors, so a busy or retired model never blocks Nova. */
+    private fun postSmart(models: List<String>, key: String, body: JSONObject, readTimeout: Int): Pair<Int, String> {
+        var last: Pair<Int, String> = 0 to "{\"error\":{\"message\":\"No usable model name set.\"}}"
+        for (m in models.map { cleanModel(it) }.filter { it.isNotEmpty() }.distinct()) {
+            for (attempt in 0 until 2) {
+                last = post(m, key, body, readTimeout)
+                if (!isBusy(last.first, last.second)) return last
+                if (attempt == 0) Thread.sleep(1500)
+            }
+        }
+        return last
+    }
+
     private fun tools(): JSONArray = JSONArray().put(JSONObject().put("functionDeclarations", JSONArray().put(
         JSONObject().put("name", "run_command")
             .put("description", "Run ONE command on the user's Android phone. Allowed formats: open <app> | play <song> | search <query> | alarm 7:30 am | timer 5 minutes | torch on | torch off | volume up | volume down | volume max | volume mute | call <number> | whatsapp <number> <text> | wifi settings | bluetooth settings | read screen | weather | scroll up | scroll down | auto scroll | stop scroll | click <visible text> | tap <x> <y> | swipe up | swipe down | go back | go home | remember <fact>")
@@ -76,7 +99,7 @@ Keep the warm tone to one short line at most."""
                     .put("generationConfig", JSONObject()
                         .put("temperature", prefs.temperature.toDouble())
                         .put("maxOutputTokens", prefs.maxTokens))
-                val (_, resp) = post(prefs.model, prefs.apiKey, body, 60000)
+                val (_, resp) = postSmart(listOf(prefs.model, "gemini-3.8-flash", "gemini-3.7-flash", "gemini-flash-latest"), prefs.apiKey, body, 60000)
                 val j = JSONObject(resp)
                 if (j.has("error")) return@withContext "Gemini error: " + j.getJSONObject("error").optString("message")
                 val content = j.getJSONArray("candidates").getJSONObject(0).optJSONObject("content")
@@ -122,7 +145,7 @@ Keep the warm tone to one short line at most."""
                     .put("responseModalities", JSONArray().put("AUDIO"))
                     .put("speechConfig", JSONObject().put("voiceConfig", JSONObject()
                         .put("prebuiltVoiceConfig", JSONObject().put("voiceName", prefs.voiceName)))))
-            val (code, resp) = post(prefs.ttsModel, prefs.apiKey, body, 60000)
+            val (code, resp) = postSmart(listOf(prefs.ttsModel, "gemini-3.8-flash-tts"), prefs.apiKey, body, 60000)
             if (code !in 200..299) return@withContext null
             val part = JSONObject(resp).getJSONArray("candidates").getJSONObject(0)
                 .getJSONObject("content").getJSONArray("parts").getJSONObject(0)

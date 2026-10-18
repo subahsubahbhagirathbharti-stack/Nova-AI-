@@ -13,7 +13,7 @@
             android:layout_width="wrap_content" android:layout_height="wrap_content"
             android:text="Code  " android:textColor="@color/neon_pink" />
         <Button android:id="@+id/btnSettings" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="⚙" android:textColor="@color/neon_cyan"
+            android:layout_height="wrap_content" android:text="SET" android:textSize="12sp" android:textStyle="bold" android:textColor="#0A0A14"
             android:background="@null" android:minWidth="48dp" />
     </LinearLayout>
 
@@ -54,13 +54,13 @@
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
         android:gravity="center_vertical" android:orientation="horizontal" android:padding="8dp">
         <Button android:id="@+id/btnMic" android:layout_width="52dp" android:layout_height="52dp"
-            android:text="🎙" android:background="@drawable/bg_btn" />
+            android:text="MIC" android:textSize="12sp" android:textStyle="bold" android:textColor="#0A0A14" android:background="@drawable/bg_btn" />
         <EditText android:id="@+id/input" android:layout_width="0dp" android:layout_weight="1"
             android:layout_height="wrap_content" android:layout_marginHorizontal="8dp"
             android:background="@drawable/bg_input" android:hint="Talk to Nova…"
             android:textColor="@color/text" android:textColorHint="@color/hint"
             android:maxLines="4" android:padding="14dp" android:inputType="textMultiLine|textCapSentences" />
         <Button android:id="@+id/btnSend" android:layout_width="52dp" android:layout_height="52dp"
-            android:text="➤" android:textColor="@color/neon_cyan" android:background="@drawable/bg_btn" />
+            android:text="SEND" android:textSize="11sp" android:textStyle="bold" android:textColor="#0A0A14" android:background="@drawable/bg_btn" />
     </LinearLayout>
 </LinearLayout>

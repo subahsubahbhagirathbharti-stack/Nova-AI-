@@ -26,6 +26,7 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
     private val r = RectF()
     private val t0 = System.nanoTime()
     private val dst = RectF()
+    private val src = android.graphics.Rect()
     private val bmpPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
     private val photo: Bitmap? = try {
         BitmapFactory.decodeResource(resources, R.drawable.nova_avatar)
@@ -76,22 +77,23 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
 
         val pic = photo
         if (pic != null) {
-            var h2 = 94f * u
-            var w2 = h2 * pic.width / pic.height
-            if (w2 > width - 8f) { w2 = width - 8f; h2 = w2 * pic.height / pic.width }
-            val sc = if (speaking) 1f + 0.012f * sin(t * 8f) else 1f
-            val left = cx - w2 / 2f
-            val top = y0 + (100f * u - h2) / 2f + bob
-            dst.set(left, top, left + w2, top + h2)
+            val d = minOf(width - 12f, 90f * u)
+            val rad = d / 2f
+            val cyy = y0 + 50f * u + bob
+            val sc = if (speaking) 1f + 0.015f * sin(t * 8f) else 1f
+            val side = minOf((pic.width * 0.80f).toInt(), pic.height)
+            val sx = ((pic.width - side) / 2f).toInt()
+            src.set(sx, 0, sx + side, side)
+            dst.set(cx - rad, cyy - rad, cx + rad, cyy + rad)
             c.save()
-            c.scale(sc, sc, cx, top + h2 / 2f)
+            c.scale(sc, sc, cx, cyy)
             path.reset()
-            path.addRoundRect(dst, 4f * u, 4f * u, Path.Direction.CW)
+            path.addCircle(cx, cyy, rad, Path.Direction.CW)
             c.clipPath(path)
-            c.drawBitmap(pic, null, dst, bmpPaint)
+            c.drawBitmap(pic, src, dst, bmpPaint)
             c.restore()
-            stroke(glow, 0.8f * u, if (speaking) (150 + 100 * (0.5f + 0.5f * sin(t * 8f))).toInt() else 170)
-            c.drawRoundRect(dst, 4f * u, 4f * u, p)
+            stroke(glow, 1.4f * u, if (speaking) (170 + 85 * (0.5f + 0.5f * sin(t * 8f))).toInt() else 210)
+            c.drawCircle(cx, cyy, rad * sc, p)
         } else {
         // back hair + twin tails
         fill(hairDark)

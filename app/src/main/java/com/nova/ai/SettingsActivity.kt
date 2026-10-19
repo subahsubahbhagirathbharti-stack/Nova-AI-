@@ -7,6 +7,8 @@ import android.provider.Settings
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.widget.SwitchCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
 
 class SettingsActivity : AppCompatActivity() {
 
@@ -56,6 +58,64 @@ class SettingsActivity : AppCompatActivity() {
 
         findViewById<Button>(R.id.btnA11y).setOnClickListener {
             startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+        }
+        fun saveCore() {
+            p.apiKey = key.text.toString().trim()
+            p.model = model.text.toString().trim().ifEmpty { "gemini-3.8-flash" }
+            p.voiceName = vname.text.toString().trim().ifEmpty { "Kore" }
+            p.ttsModel = tmodel.text.toString().trim().ifEmpty { "gemini-3.8-flash-tts" }
+        }
+        fun report(title: String, msg: String) {
+            android.app.AlertDialog.Builder(this).setTitle(title).setMessage(msg).setPositiveButton("OK", null).show()
+        }
+        findViewById<Button>(R.id.btnTestChat).setOnClickListener {
+            saveCore()
+            Toast.makeText(this, "Test चल रहा है…", Toast.LENGTH_SHORT).show()
+            lifecycleScope.launch {
+                report("Gemini chat test", GeminiClient.ping(p))
+            }
+        }
+        findViewById<Button>(R.id.btnTestVoice).setOnClickListener {
+            saveCore()
+            Toast.makeText(this, "Voice test चल रहा है…", Toast.LENGTH_SHORT).show()
+            lifecycleScope.launch {
+                val started = System.currentTimeMillis()
+                val pcm = GeminiClient.tts("नमस्ते, मैं नोवा हूँ।", p)
+                val secs = (System.currentTimeMillis() - started) / 1000.0
+                if (pcm != null && pcm.size > 2) {
+                    Speaker.netBlockedUntil = 0L
+                    report("Gemini voice test", "OK — natural आवाज़ बन गई (%.1f सेकंड)। अब सुनाती हूँ।".format(secs))
+                    Speaker(this@SettingsActivity, p).speak("नमस्ते, मैं नोवा हूँ।", lifecycleScope, true)
+                } else {
+                    report("Gemini voice test", "आवाज़ नहीं बनी।\n\nकारण: " + GeminiClient.lastTtsError.ifBlank { "पता नहीं चला" } +
+                        "\n\nइसका screenshot Claude को भेज दो।")
+                }
+            }
+        }
+        findViewById<Button>(R.id.btnPickVoice).setOnClickListener {
+            var engine: android.speech.tts.TextToSpeech? = null
+            engine = android.speech.tts.TextToSpeech(this) { st ->
+                val e = engine
+                if (st != android.speech.tts.TextToSpeech.SUCCESS || e == null) {
+                    report("Phone voice", "इस फोन में Text-to-speech engine तैयार नहीं है।")
+                } else {
+                    val voices = (e.voices ?: emptySet()).filter { it.locale.language == "hi" || it.locale.language == "en" }
+                        .sortedWith(compareBy({ it.locale.language != "hi" }, { it.name }))
+                    if (voices.isEmpty()) {
+                        report("Phone voice", "कोई Hindi/English voice नहीं मिली। Settings > Text-to-speech में Google engine और Hindi voice data install करो।")
+                    } else {
+                        val labels = voices.map { it.name + if (it.isNetworkConnectionRequired) " (online)" else "" }.toTypedArray()
+                        android.app.AlertDialog.Builder(this).setTitle("Phone voice चुनो")
+                            .setItems(labels) { _, idx ->
+                                p.sysVoice = voices[idx].name
+                                Toast.makeText(this, "चुनी: " + voices[idx].name, Toast.LENGTH_LONG).show()
+                            }
+                            .setNeutralButton("Default", { _, _ -> p.sysVoice = "" })
+                            .show()
+                    }
+                }
+                e?.shutdown()
+            }
         }
         fun openScreen(i: Intent) {
             try { startActivity(i) } catch (e: Exception) { Toast.makeText(this, "ये screen इस फोन पर नहीं खुली", Toast.LENGTH_LONG).show() }

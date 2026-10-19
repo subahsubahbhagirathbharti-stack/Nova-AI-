@@ -29,7 +29,13 @@ class MainActivity : AppCompatActivity() {
     private lateinit var codeSwitch: SwitchCompat
     private lateinit var reactor: AvatarView
     private lateinit var status: TextView
-    private lateinit var mic: Button
+    private lateinit var mic: TextView
+    private lateinit var homePage: android.view.View
+    private lateinit var chatPage: android.view.View
+    private lateinit var greeting: TextView
+    private lateinit var greetName: TextView
+    private lateinit var lastReply: TextView
+    private lateinit var tapLabel: TextView
     private lateinit var weather: TextView
     private lateinit var battery: TextView
     private val msgs = mutableListOf<Msg>()
@@ -87,12 +93,34 @@ class MainActivity : AppCompatActivity() {
         weather = findViewById(R.id.weather)
         battery = findViewById(R.id.battery)
         val input = findViewById<EditText>(R.id.input)
+        homePage = findViewById(R.id.homePage)
+        chatPage = findViewById(R.id.chatPage)
+        greeting = findViewById(R.id.greeting)
+        greetName = findViewById(R.id.greetName)
+        lastReply = findViewById(R.id.lastReply)
+        tapLabel = findViewById(R.id.tapLabel)
+        findViewById<TextView>(R.id.navHome).setOnClickListener { showPage(true) }
+        findViewById<TextView>(R.id.navChat).setOnClickListener { showPage(false) }
+        tapLabel.setOnClickListener { speaker.stop(); toggleListening() }
+        reactor.setOnClickListener { speaker.stop(); toggleListening() }
+        fun toChat(prefill: String) {
+            showPage(false)
+            input.setText(prefill)
+            input.setSelection(input.text.length)
+            input.requestFocus()
+        }
+        findViewById<TextView>(R.id.chipMusic).setOnClickListener { toChat("play ") }
+        findViewById<TextView>(R.id.chipStudy).setOnClickListener { toChat("समझाओ: ") }
+        findViewById<TextView>(R.id.chipCalc).setOnClickListener { toChat("calculate ") }
+        findViewById<TextView>(R.id.chipNotes).setOnClickListener { submit("read notes") }
+        findViewById<TextView>(R.id.chipWeather).setOnClickListener { submit("weather") }
+        findViewById<TextView>(R.id.chipToday).setOnClickListener { submit("good morning") }
 
-        findViewById<Button>(R.id.btnSend).setOnClickListener {
+        findViewById<TextView>(R.id.btnSend).setOnClickListener {
             val t = input.text.toString().trim()
             if (t.isNotEmpty()) { input.text.clear(); submit(t) }
         }
-        findViewById<Button>(R.id.btnCam).setOnClickListener {
+        findViewById<TextView>(R.id.btnCam).setOnClickListener {
             val q = input.text.toString().trim()
             camQuestion = if (q.isEmpty()) "इसमें क्या है? हिंदी में बताओ।" else q
             input.text.clear()
@@ -105,7 +133,7 @@ class MainActivity : AppCompatActivity() {
         }
         Brief.schedule(this, prefs)
         mic.setOnClickListener { speaker.stop(); toggleListening() }
-        findViewById<Button>(R.id.btnSettings).setOnClickListener {
+        findViewById<TextView>(R.id.btnSettings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
         }
         if (msgs.isEmpty()) addMsg(Msg("model", "Hey ${prefs.userName} 💙 मैं Nova हूँ। नीचे 🎙 दबाओ, फिर मैं लगातार सुनती रहूँगी, जब तक तुम \"नोवा बंद\" न बोलो। Gemini key ⚙ Settings में डालना मत भूलना।"))
@@ -138,15 +166,32 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun showPage(home: Boolean) {
+        homePage.visibility = if (home) android.view.View.VISIBLE else android.view.View.GONE
+        chatPage.visibility = if (home) android.view.View.GONE else android.view.View.VISIBLE
+        if (!home && msgs.isNotEmpty()) list.scrollToPosition(msgs.size - 1)
+    }
+
+    private fun updateGreeting() {
+        val h = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
+        greeting.text = when {
+            h < 12 -> "Good morning,"
+            h < 17 -> "Good afternoon,"
+            else -> "Good evening,"
+        }
+        greetName.text = prefs.userName
+    }
+
     private fun applyState(s: String) {
         reactor.mode = s
         status.text = when (s) {
-            "listening" -> "LISTENING…"
-            "thinking" -> "PROCESSING…"
-            "speaking" -> "SPEAKING…"
-            else -> "STANDBY"
+            "listening" -> "● Listening…"
+            "thinking" -> "● Thinking…"
+            "speaking" -> "● Speaking…"
+            else -> "● Ready when you are"
         }
         mic.text = if (ListenService.running) "STOP" else "MIC"
+        tapLabel.text = if (ListenService.running) "Tap to stop" else "Tap to talk"
     }
 
     private fun addMsg(m: Msg) {
@@ -185,6 +230,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun reply(text: String) {
         addMsg(Msg("model", text))
+        lastReply.text = text.take(180)
         speaker.speak(text, lifecycleScope)
     }
 
@@ -198,6 +244,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        updateGreeting()
         reload()
         ListenService.onState = { applyState(it) }
         ListenService.onChange = { reload() }

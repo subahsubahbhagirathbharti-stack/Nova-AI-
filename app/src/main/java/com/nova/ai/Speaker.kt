@@ -25,6 +25,11 @@ import kotlin.coroutines.resume
  * while the next chunk is generated in the background, so Nova starts talking much sooner.
  */
 class Speaker(private val ctx: Context, private val prefs: Prefs) {
+    companion object {
+        /** After a Gemini/ElevenLabs voice failure, skip the network voice for a while so Nova answers instantly. */
+        @Volatile var netBlockedUntil = 0L
+    }
+
     private class Audio(val pcm: ByteArray?, val mp3: ByteArray?)
 
     private var ready = false
@@ -54,8 +59,9 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
         val my = gen
         val finish: () -> Unit = { if (my == gen) onDone() }
         val start: () -> Unit = { if (my == gen) onStart() }
-        val netVoice = (prefs.elevenKey.isNotBlank() && prefs.elevenVoiceId.isNotBlank()) ||
-            (prefs.naturalVoice && prefs.apiKey.isNotBlank())
+        val netVoice = System.currentTimeMillis() > netBlockedUntil &&
+            ((prefs.elevenKey.isNotBlank() && prefs.elevenVoiceId.isNotBlank()) ||
+                (prefs.naturalVoice && prefs.apiKey.isNotBlank()))
         if (!netVoice || text.length <= 45) { system(text, start, finish); return }
         scope.launch {
             val chunks = splitChunks(text)
@@ -68,7 +74,8 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
                 if (a == null) {
                     if (i + 1 < chunks.size) pending.cancel()
                     val why = GeminiClient.lastTtsError
-                    info("Natural voice failed" + (if (why.isNotBlank()) " ($why)" else "") + " -> phone voice")
+                    if (i == 0) netBlockedUntil = System.currentTimeMillis() + 10 * 60 * 1000L
+                    info("Natural voice failed" + (if (why.isNotBlank()) " ($why)" else "") + " -> phone voice for 10 min")
                     system(chunks.drop(i).joinToString(" "), start, finish)
                     return@launch
                 }
@@ -124,6 +131,9 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
         }
         tts.setPitch(prefs.pitch)
         tts.setSpeechRate(prefs.rate)
+        if (prefs.sysVoice.isNotBlank()) {
+            try { tts.voices?.firstOrNull { it.name == prefs.sysVoice }?.let { tts.voice = it } } catch (e: Exception) { }
+        }
         pendingFinish = finish
         start()
         tts.speak(text, TextToSpeech.QUEUE_FLUSH, null, "nova")

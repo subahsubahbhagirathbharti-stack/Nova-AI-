@@ -9,6 +9,8 @@ import android.media.AudioManager
 import android.net.Uri
 import android.provider.AlarmClock
 import android.provider.Settings
+import java.text.SimpleDateFormat
+import java.util.Locale
 
 /** Handles device commands locally. Returns Nova's reply, or null to send the text to Gemini. */
 object CommandRouter {
@@ -64,6 +66,50 @@ object CommandRouter {
         }
         if (t == "what do you remember" || t == "kya yaad hai") {
             return if (prefs.memories.isBlank()) "अभी मुझे कुछ याद नहीं है। बोलो \"remember ...\" तो मैं सीख लूँगी।" else prefs.memories
+        }
+
+        // ---- notes ----
+        Regex("^(?:note|take note|नोट करो|नोट लिखो)[: ]+(.+)$").find(t)?.let {
+            prefs.notes = (prefs.notes + "\n" + it.groupValues[1]).trim()
+            return "नोट कर लिया, $name 📝"
+        }
+        if (t == "read notes" || t == "show notes" || t == "my notes" || t == "नोट्स पढ़ो" || t == "मेरे नोट्स पढ़ो" || t == "नोट्स सुनाओ") {
+            return if (prefs.notes.isBlank()) "अभी कोई नोट नहीं है, $name।"
+            else "ये रहे तुम्हारे नोट्स। " + prefs.notes.lines().filter { it.isNotBlank() }.joinToString(" । ")
+        }
+        if (t == "clear notes" || t == "delete notes" || t == "नोट्स मिटाओ") {
+            prefs.notes = ""
+            return "सारे नोट्स मिटा दिए।"
+        }
+
+        // ---- reminders ----
+        fun remind(what: String, at: Long): String {
+            val whenText = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(at)
+            return if (Reminder.schedule(ctx, what, at)) "ठीक है $name, $whenText पर याद दिलाऊँगी: $what ⏰"
+            else "Reminder नहीं लग पाया 😕 Settings में Nova AI के लिए alarms की permission देखो।"
+        }
+        Regex("^remind me (?:to )?(.+?) (?:at|by) (\\d{1,2})(?::(\\d{2}))? ?(am|pm)?$").find(t)?.let {
+            val h = it.groupValues[2].toInt(); val m = it.groupValues[3].ifEmpty { "0" }.toInt()
+            if (h > 23 || m > 59) return "ये समय ठीक नहीं लग रहा, $name।"
+            return remind(it.groupValues[1], Reminder.nextTime(h, m, it.groupValues[4]))
+        }
+        Regex("^remind me (?:to )?(.+?) in (\\d+) ?(minute|min|hour|hr)s?$").find(t)?.let {
+            val n = it.groupValues[2].toInt()
+            val mult = if (it.groupValues[3].startsWith("h")) 60L else 1L
+            return remind(it.groupValues[1], System.currentTimeMillis() + n * mult * 60_000L)
+        }
+        Regex("^(?:मुझे )?(.+?) (\\d{1,2}) बजे याद दिलाओ$").find(t)?.let {
+            val h = it.groupValues[2].toInt()
+            if (h > 23) return "ये समय ठीक नहीं लग रहा, $name।"
+            return remind(it.groupValues[1], Reminder.nextTime(h, 0, ""))
+        }
+        Regex("^(?:मुझे )?(?:(\\d{1,2}) बजे )(.+?) याद दिलाओ$").find(t)?.let {
+            val h = it.groupValues[1].toInt()
+            if (h > 23) return "ये समय ठीक नहीं लग रहा, $name।"
+            return remind(it.groupValues[2], Reminder.nextTime(h, 0, ""))
+        }
+        Regex("^(?:मुझे )?(.+?) (\\d+) मिनट (?:बाद|में) याद दिलाओ$").find(t)?.let {
+            return remind(it.groupValues[1], System.currentTimeMillis() + it.groupValues[2].toInt() * 60_000L)
         }
 
         // ---- apps / media ----
@@ -162,6 +208,18 @@ object CommandRouter {
         }
         if (t == "accessibility settings") {
             return start(ctx, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), "Accessibility settings खोल रही हूँ।")
+        }
+
+        // ---- calculator (offline) ----
+        Regex("^(?:calculate |calc |कैलकुलेट करो |गणना करो |what is |what's )?([0-9+\\-*/x×÷().% ]+)$").find(t)?.let {
+            val expr = it.groupValues[1].trim()
+            if (expr.any { c -> c in "+-*/x×÷%" } && expr.any { c -> c.isDigit() }) {
+                val v = Calc.eval(expr)
+                if (v != null) {
+                    if (v.isNaN() || v.isInfinite()) return "शून्य से भाग नहीं हो सकता, $name।"
+                    return Calc.speakable(expr) + " बराबर " + Calc.format(v) + " होता है।"
+                }
+            }
         }
         return null
     }

@@ -1,69 +1,124 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:orientation="vertical" android:fitsSystemWindows="true">
+    android:background="@drawable/bg_main" android:orientation="vertical" android:fitsSystemWindows="true">
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:gravity="center_vertical" android:orientation="horizontal" android:padding="10dp">
-        <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
-            android:text="NOVA AI" android:textColor="@color/neon_cyan" android:textSize="22sp"
-            android:textStyle="bold" android:letterSpacing="0.3"
-            android:shadowColor="#00E5FF" android:shadowRadius="18" />
-        <androidx.appcompat.widget.SwitchCompat android:id="@+id/codeSwitch"
-            android:layout_width="wrap_content" android:layout_height="wrap_content"
-            android:text="Code  " android:textColor="@color/neon_pink" />
-        <Button android:id="@+id/btnCam" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="CAM" android:textSize="12sp" android:textStyle="bold" android:textColor="#0A0A14"
-            android:background="@null" android:minWidth="48dp" />
-        <Button android:id="@+id/btnSettings" android:layout_width="wrap_content"
-            android:layout_height="wrap_content" android:text="SET" android:textSize="12sp" android:textStyle="bold" android:textColor="#0A0A14"
-            android:background="@null" android:minWidth="48dp" />
-    </LinearLayout>
+    <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
 
-    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:layout_marginHorizontal="10dp" android:background="@drawable/bg_hud"
-        android:gravity="center_vertical" android:orientation="horizontal" android:padding="12dp">
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:orientation="vertical">
-            <TextClock android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:format12Hour="hh:mm a" android:format24Hour="HH:mm"
-                android:textColor="@color/neon_cyan" android:textSize="28sp" android:textStyle="bold" />
-            <TextClock android:layout_width="wrap_content" android:layout_height="wrap_content"
-                android:format12Hour="EEEE, d MMM" android:format24Hour="EEEE, d MMM"
-                android:textColor="@color/hint" android:textSize="12sp" />
+        <!-- HOME PAGE -->
+        <ScrollView android:id="@+id/homePage" android:layout_width="match_parent"
+            android:layout_height="match_parent" android:fillViewport="true">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:gravity="center_horizontal" android:orientation="vertical" android:padding="16dp">
+
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="NOVA AI" android:textColor="@color/neon_cyan" android:textSize="16sp"
+                    android:textStyle="bold" android:letterSpacing="0.3" />
+                <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:text="PERSONAL AI · LIVE" android:textColor="@color/hint" android:textSize="10sp"
+                    android:letterSpacing="0.2" />
+
+                <TextView android:id="@+id/greeting" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="14dp"
+                    android:text="Good morning," android:textColor="@color/hint" android:textSize="14sp" />
+                <TextView android:id="@+id/greetName" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:text="love"
+                    android:textColor="@color/neon_cyan" android:textSize="32sp" android:textStyle="bold" />
+
+                <TextView android:id="@+id/status" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:layout_gravity="start"
+                    android:layout_marginTop="8dp" android:background="@drawable/bg_pill"
+                    android:paddingHorizontal="12dp" android:paddingVertical="5dp"
+                    android:text="● Ready when you are" android:textColor="@color/text" android:textSize="11sp" />
+
+                <com.nova.ai.AvatarView android:id="@+id/reactor"
+                    android:layout_width="match_parent" android:layout_height="300dp" />
+
+                <TextView android:id="@+id/tapLabel" android:layout_width="wrap_content"
+                    android:layout_height="wrap_content" android:padding="6dp" android:text="Tap to talk"
+                    android:textColor="@color/neon_cyan" android:textSize="15sp" android:textStyle="bold" />
+
+                <TextView android:id="@+id/lastReply" android:layout_width="match_parent"
+                    android:layout_height="wrap_content" android:layout_marginTop="4dp"
+                    android:gravity="center" android:textColor="@color/text" android:textSize="13sp" />
+
+                <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginTop="14dp" android:orientation="horizontal">
+                    <TextView android:id="@+id/chipMusic" style="@style/Chip" android:text="♪ Music" />
+                    <TextView android:id="@+id/chipStudy" style="@style/Chip" android:text="Study" />
+                    <TextView android:id="@+id/chipNotes" style="@style/Chip" android:text="Notes" />
+                </LinearLayout>
+                <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:orientation="horizontal">
+                    <TextView android:id="@+id/chipWeather" style="@style/Chip" android:text="Weather" />
+                    <TextView android:id="@+id/chipToday" style="@style/Chip" android:text="Today" />
+                    <TextView android:id="@+id/chipCalc" style="@style/Chip" android:text="Calc" />
+                </LinearLayout>
+
+                <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                    android:layout_marginTop="16dp" android:background="@drawable/bg_hud"
+                    android:gravity="center_vertical" android:orientation="horizontal" android:padding="12dp">
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:orientation="vertical">
+                        <TextClock android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:format12Hour="hh:mm a" android:format24Hour="HH:mm"
+                            android:textColor="@color/neon_cyan" android:textSize="26sp" android:textStyle="bold" />
+                        <TextClock android:layout_width="wrap_content" android:layout_height="wrap_content"
+                            android:format12Hour="EEEE, d MMM" android:format24Hour="EEEE, d MMM"
+                            android:textColor="@color/hint" android:textSize="12sp" />
+                    </LinearLayout>
+                    <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
+                        android:layout_weight="1" android:gravity="end" android:orientation="vertical">
+                        <TextView android:id="@+id/weather" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:text="--"
+                            android:textColor="@color/neon_cyan" android:textSize="15sp" />
+                        <TextView android:id="@+id/battery" android:layout_width="wrap_content"
+                            android:layout_height="wrap_content" android:text="BAT --"
+                            android:textColor="@color/neon_pink" android:textSize="13sp" />
+                    </LinearLayout>
+                </LinearLayout>
+            </LinearLayout>
+        </ScrollView>
+
+        <!-- CHAT PAGE -->
+        <LinearLayout android:id="@+id/chatPage" android:layout_width="match_parent"
+            android:layout_height="match_parent" android:orientation="vertical" android:visibility="gone">
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:gravity="center_vertical" android:orientation="horizontal" android:padding="12dp">
+                <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
+                    android:text="CHAT" android:textColor="@color/neon_cyan" android:textSize="18sp"
+                    android:textStyle="bold" android:letterSpacing="0.3" />
+                <androidx.appcompat.widget.SwitchCompat android:id="@+id/codeSwitch"
+                    android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:text="Code  " android:textColor="@color/neon_pink" />
+            </LinearLayout>
+            <androidx.recyclerview.widget.RecyclerView android:id="@+id/chatList"
+                android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+                android:padding="8dp" android:clipToPadding="false" />
+            <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
+                android:gravity="center_vertical" android:orientation="horizontal" android:padding="8dp">
+                <EditText android:id="@+id/input" android:layout_width="0dp" android:layout_weight="1"
+                    android:layout_height="wrap_content" android:layout_marginEnd="8dp"
+                    android:background="@drawable/bg_input" android:hint="Talk to Nova…"
+                    android:textColor="@color/text" android:textColorHint="@color/hint"
+                    android:maxLines="4" android:padding="14dp" android:inputType="textMultiLine|textCapSentences" />
+                <TextView android:id="@+id/btnSend" android:layout_width="56dp" android:layout_height="48dp"
+                    android:background="@drawable/bg_chip" android:gravity="center" android:text="SEND"
+                    android:textColor="@color/text" android:textSize="12sp" android:textStyle="bold" />
+            </LinearLayout>
         </LinearLayout>
-        <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
-            android:layout_weight="1" android:gravity="end" android:orientation="vertical">
-            <TextView android:id="@+id/weather" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:text="--"
-                android:textColor="@color/neon_cyan" android:textSize="15sp" />
-            <TextView android:id="@+id/battery" android:layout_width="wrap_content"
-                android:layout_height="wrap_content" android:text="BAT --"
-                android:textColor="@color/neon_pink" android:textSize="13sp" />
-        </LinearLayout>
-    </LinearLayout>
+    </FrameLayout>
 
-    <com.nova.ai.AvatarView android:id="@+id/reactor"
-        android:layout_width="match_parent" android:layout_height="280dp" />
-
-    <TextView android:id="@+id/status" android:layout_width="match_parent"
-        android:layout_height="wrap_content" android:gravity="center" android:text="STANDBY"
-        android:textColor="@color/neon_cyan" android:textSize="12sp" android:letterSpacing="0.4" />
-
-    <androidx.recyclerview.widget.RecyclerView android:id="@+id/chatList"
-        android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
-        android:padding="8dp" android:clipToPadding="false" />
-
+    <!-- BOTTOM NAV -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:gravity="center_vertical" android:orientation="horizontal" android:padding="8dp">
-        <Button android:id="@+id/btnMic" android:layout_width="52dp" android:layout_height="52dp"
-            android:text="MIC" android:insetTop="0dp" android:insetBottom="0dp" android:paddingStart="0dp" android:paddingEnd="0dp" android:paddingTop="0dp" android:paddingBottom="0dp" android:maxLines="1" android:singleLine="true" android:ellipsize="none" android:textSize="12sp" android:textStyle="bold" android:textColor="#0A0A14" android:background="@drawable/bg_btn" />
-        <EditText android:id="@+id/input" android:layout_width="0dp" android:layout_weight="1"
-            android:layout_height="wrap_content" android:layout_marginHorizontal="8dp"
-            android:background="@drawable/bg_input" android:hint="Talk to Nova…"
-            android:textColor="@color/text" android:textColorHint="@color/hint"
-            android:maxLines="4" android:padding="14dp" android:inputType="textMultiLine|textCapSentences" />
-        <Button android:id="@+id/btnSend" android:layout_width="52dp" android:layout_height="52dp"
-            android:text="SEND" android:insetTop="0dp" android:insetBottom="0dp" android:paddingStart="0dp" android:paddingEnd="0dp" android:paddingTop="0dp" android:paddingBottom="0dp" android:maxLines="1" android:singleLine="true" android:ellipsize="none" android:textSize="11sp" android:textStyle="bold" android:textColor="#0A0A14" android:background="@drawable/bg_btn" />
+        android:background="@drawable/bg_nav" android:gravity="center_vertical"
+        android:orientation="horizontal" android:paddingVertical="6dp">
+        <TextView android:id="@+id/navHome" style="@style/Nav" android:text="HOME" />
+        <TextView android:id="@+id/navChat" style="@style/Nav" android:text="CHAT" />
+        <TextView android:id="@+id/btnMic" android:layout_width="64dp" android:layout_height="64dp"
+            android:background="@drawable/bg_mic" android:gravity="center" android:text="MIC"
+            android:textColor="#1A0B3D" android:textSize="13sp" android:textStyle="bold" />
+        <TextView android:id="@+id/btnCam" style="@style/Nav" android:text="CAM" />
+        <TextView android:id="@+id/btnSettings" style="@style/Nav" android:text="SET" />
     </LinearLayout>
 </LinearLayout>

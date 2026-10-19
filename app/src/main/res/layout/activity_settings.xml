@@ -74,6 +74,14 @@
         <SeekBar android:id="@+id/pitch" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:max="15" />
 
+        <TextView style="@style/Label" android:layout_marginTop="16dp" android:text="Diagnostics - पहले यहाँ दबाकर देखो क्या चल रहा है" />
+        <Button android:id="@+id/btnTestChat" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Test Gemini chat" />
+        <Button android:id="@+id/btnTestVoice" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Test Gemini voice (natural)" />
+        <Button android:id="@+id/btnPickVoice" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Choose phone voice (कम robotic वाली चुनो)" />
+
         <Button android:id="@+id/btnA11y" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="16dp"
             android:text="Enable screen control (Accessibility)" />

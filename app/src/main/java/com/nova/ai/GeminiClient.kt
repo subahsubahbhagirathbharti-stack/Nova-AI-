@@ -107,6 +107,24 @@ Keep the warm tone to one short line at most."""
         }
     }
 
+    /** Real connection test: returns "OK" or the exact error text. */
+    suspend fun ping(prefs: Prefs): String = withContext(Dispatchers.IO) {
+        if (prefs.apiKey.isBlank()) return@withContext "Gemini key खाली है।"
+        try {
+            val body = JSONObject()
+                .put("contents", JSONArray().put(JSONObject().put("role", "user")
+                    .put("parts", JSONArray().put(JSONObject().put("text", "Say OK")))))
+                .put("generationConfig", JSONObject().put("maxOutputTokens", 20))
+            val started = System.currentTimeMillis()
+            val (code, resp) = postSmart(listOf(prefs.model, "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-flash-latest"), prefs.apiKey, body, 30000)
+            val secs = (System.currentTimeMillis() - started) / 1000.0
+            if (code in 200..299) "OK — Gemini chat चल रहा है (%.1f सेकंड)".format(secs)
+            else "HTTP $code: " + (try { JSONObject(resp).getJSONObject("error").optString("message").take(220) } catch (e: Exception) { resp.take(120) })
+        } catch (e: Exception) {
+            "Network problem: " + (e.message ?: "")
+        }
+    }
+
     private fun tools(): JSONArray = JSONArray().put(JSONObject().put("functionDeclarations", JSONArray().put(
         JSONObject().put("name", "run_command")
             .put("description", "Run ONE command on the user's Android phone. Allowed formats: open <app> | play <song> | search <query> | alarm 7:30 am | timer 5 minutes | torch on | torch off | volume up | volume down | volume max | volume mute | call <number> | whatsapp <number> <text> | wifi settings | bluetooth settings | read screen | weather | scroll up | scroll down | auto scroll | stop scroll | click <visible text> | tap <x> <y> | swipe up | swipe down | go back | go home | remember <fact>")

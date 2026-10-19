@@ -45,6 +45,16 @@ class ListenService : Service() {
     private var awakeUntil = 0L
     private val wakeWords = listOf("nova", "नोवा", "नॉवा", "नोवाह", "novah")
 
+    /** True for "Nova", "Hello Nova", "हेलो नोवा", "hey nova" - just calling her, no command. */
+    private fun isBareWake(s: String): Boolean {
+        var rest = s.lowercase()
+        if (wakeWords.none { rest.contains(it) }) return false
+        for (w in wakeWords) rest = rest.replace(w, " ")
+        rest = rest.replace(Regex("(hello|hey|hi|okay|ok|हेलो|हैलो|हेल्लो|हे|हाय|ओके|सुनो|सुनिए)"), " ")
+            .replace(Regex("[\\s,.!?।-]+"), "")
+        return rest.isEmpty()
+    }
+
     override fun onBind(i: Intent?): IBinder? = null
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -106,8 +116,7 @@ class ListenService : Service() {
                 // Instant wake: as soon as the partial text is just "Nova", answer without waiting for silence.
                 if (busy || !prefs.wakeMode || System.currentTimeMillis() <= awakeUntil) return
                 val pt = b?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)?.firstOrNull() ?: return
-                val bare = pt.lowercase().replace(Regex("[\\s,.!?।-]+"), "")
-                if (wakeWords.any { bare == it }) {
+                if (isBareWake(pt)) {
                     recognizer?.destroy()
                     recognizer = null
                     handle(pt)
@@ -164,7 +173,7 @@ class ListenService : Service() {
                 text = text.replace(Regex(Regex.escape(hit), RegexOption.IGNORE_CASE), " ")
                     .replace(Regex("^[\\s,.!?।-]+|[\\s,.!?।-]+$"), "")
                     .trim()
-                if (text.isBlank() && !stopListenPhrase(tRaw)) {
+                if ((text.isBlank() || isBareWake(raw)) && !stopListenPhrase(tRaw)) {
                     awakeUntil = now + 20000L
                     state("thinking")
                     speaker.speak("हाँ, बोलो।", scope, true, onStart = { state("speaking") }) {

@@ -34,6 +34,14 @@
             android:layout_marginTop="8dp" android:text="Wake word: बोलो Nova या नोवा तब जवाब दूँगी"
             android:textColor="@color/text" />
 
+        <androidx.appcompat.widget.SwitchCompat android:id="@+id/gttsSwitch"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="Free Google voice (gTTS) - backup जब Gemini voice न चले"
+            android:textColor="@color/text" />
+        <androidx.appcompat.widget.SwitchCompat android:id="@+id/angerSwitch"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="गुस्से में Nova फ़ोन lock कर दे (Accessibility चाहिए)"
+            android:textColor="@color/text" />
         <androidx.appcompat.widget.SwitchCompat android:id="@+id/natSwitch"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="8dp" android:text="Natural voice (Gemini) - less robotic"
@@ -92,6 +100,10 @@
             android:layout_height="wrap_content" android:text="Battery: Unrestricted (background में चलते रहने के लिए)" />
         <Button android:id="@+id/btnPermOverlay" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:text="Display over other apps" />
+        <Button android:id="@+id/btnPermAutostart" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Redmi/Xiaomi: Autostart ON करो" />
+        <Button android:id="@+id/btnPermXiaomiBattery" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Redmi/Xiaomi: Battery saver - No restrictions" />
         <Button android:id="@+id/btnPermApp" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:text="App info (Allow restricted settings / permissions)" />
         <Button android:id="@+id/btnClear" android:layout_width="match_parent"

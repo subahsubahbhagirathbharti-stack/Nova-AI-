@@ -56,7 +56,8 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
         val y0 = (height - 100f * u) / 2f
         val bob = sin(t * 1.6f) * 0.9f * u
         val speaking = mode == "speaking"
-        val glow = when (mode) {
+        val angry = System.currentTimeMillis() < CommandRouter.angryUntil
+        val glow = if (angry) 0xFFFF3B30.toInt() else when (mode) {
             "listening" -> 0xFF00E5FF.toInt()
             "thinking" -> 0xFFFFB300.toInt()
             "speaking" -> 0xFFFF2E9A.toInt()

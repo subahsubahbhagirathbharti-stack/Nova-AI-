@@ -28,6 +28,7 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
     companion object {
         /** After a Gemini/ElevenLabs voice failure, skip the network voice for a while so Nova answers instantly. */
         @Volatile var netBlockedUntil = 0L
+        @Volatile var geminiBlockedUntil = 0L
     }
 
     private class Audio(val pcm: ByteArray?, val mp3: ByteArray?)
@@ -59,9 +60,11 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
         val my = gen
         val finish: () -> Unit = { if (my == gen) onDone() }
         val start: () -> Unit = { if (my == gen) onStart() }
-        val netVoice = System.currentTimeMillis() > netBlockedUntil &&
+        val now0 = System.currentTimeMillis()
+        val netVoice = now0 > netBlockedUntil &&
             ((prefs.elevenKey.isNotBlank() && prefs.elevenVoiceId.isNotBlank()) ||
-                (prefs.naturalVoice && prefs.apiKey.isNotBlank()))
+                (prefs.naturalVoice && prefs.apiKey.isNotBlank() && now0 > geminiBlockedUntil) ||
+                prefs.gtts)
         if (!netVoice || text.length <= 45) { system(text, start, finish); return }
         scope.launch {
             val chunks = splitChunks(text)
@@ -92,9 +95,16 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
             val b = ElevenLabs.tts(chunk, prefs)
             if (b != null) return Audio(null, b)
         }
-        if (prefs.naturalVoice && prefs.apiKey.isNotBlank()) {
+        if (prefs.naturalVoice && prefs.apiKey.isNotBlank() && System.currentTimeMillis() > geminiBlockedUntil) {
             val pcm = GeminiClient.tts(chunk, prefs)
             if (pcm != null && pcm.size > 2) return Audio(pcm, null)
+            geminiBlockedUntil = System.currentTimeMillis() + 10 * 60 * 1000L
+            val why = GeminiClient.lastTtsError
+            info("Gemini voice failed" + (if (why.isNotBlank()) " ($why)" else "") + " -> backup voice for 10 min")
+        }
+        if (prefs.gtts) {
+            val mp3 = GTts.tts(chunk)
+            if (mp3 != null) return Audio(null, mp3)
         }
         return null
     }
@@ -105,12 +115,12 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
         var cur = StringBuilder()
         for (s0 in sentences) {
             var s = s0
-            while (s.length > 220) {
+            while (s.length > 180) {
                 if (cur.isNotEmpty()) { out.add(cur.toString().trim()); cur = StringBuilder() }
-                out.add(s.take(220))
-                s = s.drop(220)
+                out.add(s.take(180))
+                s = s.drop(180)
             }
-            val limit = if (out.isEmpty()) 110 else 220
+            val limit = if (out.isEmpty()) 110 else 180
             if (cur.isNotEmpty() && cur.length + s.length + 1 > limit) {
                 out.add(cur.toString().trim()); cur = StringBuilder()
             }

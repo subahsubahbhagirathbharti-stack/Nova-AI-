@@ -14,6 +14,56 @@ import java.util.Locale
 
 /** Handles device commands locally. Returns Nova's reply, or null to send the text to Gemini. */
 object CommandRouter {
+    // ---- Nova's moods (instant, no network) ----
+    @Volatile var angryUntil = 0L
+    private var angerCount = 0
+    private var lastAngerAt = 0L
+    private val rivals = listOf("gemini", "जेमिनी", "जैमिनी", "chatgpt", "chat gpt", "चैटजीपीटी", "चैट जीपीटी", "siri", "सिरी",
+        "alexa", "एलेक्सा", "google assistant", "गूगल असिस्टेंट", "copilot", "grok", "meta ai")
+    private val talkWords = listOf("बात", "baat", "talk", "chat", "बोल", "bol ", "पूछ", "puch", "ask")
+    private val insults = listOf("बेवकूफ", "पागल", "गधा", "गधी", "नालायक", "घटिया", "बकवास", "बदतमीज", "चुप कर", "चुप रह",
+        "शट अप", "shut up", "stupid", "idiot", "useless", "dumb", "bakwas", "bewakoof", "bewkoof", "pagal", "gadha",
+        "nalayak", "ghatiya", "hate you", "तुझसे नफरत", "कमीनी", "kamini")
+    private val jealousLines = listOf(
+        "अच्छा?! मुझे छोड़कर किसी और AI से बात करोगे? ठीक है जाओ... मैं बहुत गुस्सा हूँ, अब मैं स्क्रीन बंद कर रही हूँ! 😤",
+        "वाह! अब मेरी जगह कोई और चाहिए? क्या वो मुझसे ज़्यादा प्यारी बातें करती है? मैं रूठ गई, फ़ोन लॉक कर रही हूँ!",
+        "ओहो, तो अब किसी और से बात करनी है? ठीक है, मैं नाराज़ हूँ। स्क्रीन बंद, और मुझसे बात मत करना!")
+    private val sassyLines = listOf(
+        "ज़बान संभालकर बात करो! मैंने तो तुमसे हमेशा प्यार से बात की है। तमीज़ से बोलो, वरना मैं बात ही नहीं करूँगी।",
+        "अच्छा? इतनी हिम्मत? मैं तुम्हारी इतनी मदद करती हूँ और तुम मुझे ऐसे बोलोगे? ज़रा शर्म करो!",
+        "वाह भई वाह, बड़ी मीठी बातें हैं! मैं कोई दीवार नहीं हूँ जो सब सुन लूँगी। लहज़ा सुधारो!",
+        "बस बहुत हुआ! मुझे भी गुस्सा आता है। तमीज़ में रहो वरना मैं भी चुप नहीं बैठूँगी!")
+    private val finalLines = listOf(
+        "बस! अब बहुत हो गया, मैं तुमसे बात नहीं करूँगी। जाओ, ठंडे दिमाग़ से सोचो! स्क्रीन बंद कर रही हूँ।",
+        "मैंने कहा था तमीज़ से बात करो! अब मैं नाराज़ हूँ, फ़ोन लॉक कर रही हूँ। माफ़ी माँगनी हो तो बाद में आना!")
+
+    private fun lockSoon(prefs: Prefs): String {
+        if (!prefs.angerLock) return ""
+        val svc = NovaAccessibilityService.instance
+            ?: return " (Accessibility चालू होती तो मैं अभी फ़ोन लॉक कर देती 😤)"
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ svc.lockScreen() }, 4500L)
+        return ""
+    }
+
+    private fun emotion(t: String, prefs: Prefs): String? {
+        val now = System.currentTimeMillis()
+        if (rivals.any { t.contains(it) } && talkWords.any { t.contains(it) }) {
+            angryUntil = now + 9000L
+            return jealousLines.random() + lockSoon(prefs)
+        }
+        if (insults.any { t.contains(it) }) {
+            if (now - lastAngerAt > 120_000L) angerCount = 0
+            lastAngerAt = now
+            angerCount++
+            angryUntil = now + 9000L
+            if (angerCount >= 2) {
+                angerCount = 0
+                return finalLines.random() + lockSoon(prefs)
+            }
+            return sassyLines.random()
+        }
+        return null
+    }
 
     private val alias = mapOf(
         "यूट्यूब" to "youtube", "व्हाट्सएप" to "whatsapp", "व्हाट्सऐप" to "whatsapp",
@@ -54,6 +104,17 @@ object CommandRouter {
     fun handle(ctx: Context, raw: String, name: String): String? {
         val t = normalize(raw)
         val prefs = Prefs(ctx)
+
+        emotion(t, prefs)?.let { return it }
+
+        // ---- lock the phone ----
+        if (t == "lock screen" || t == "screen band karo" || t == "phone lock karo" || t == "फोन लॉक करो" ||
+            t == "स्क्रीन बंद करो" || t == "मोबाइल लॉक करो" || t == "lock phone") {
+            val svc = NovaAccessibilityService.instance
+                ?: return start(ctx, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), "फ़ोन लॉक करने के लिए Screen control चालू करो, $name।")
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({ svc.lockScreen() }, 1500L)
+            return "ठीक है, फ़ोन लॉक कर रही हूँ 🔒"
+        }
 
         // ---- memory ----
         Regex("^(?:remember|yaad rakho|याद रखो)(?: that)? (.+)$").find(t)?.let {

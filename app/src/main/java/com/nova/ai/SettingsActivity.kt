@@ -38,6 +38,8 @@ class SettingsActivity : AppCompatActivity() {
         val eVoice = findViewById<EditText>(R.id.elevenVoiceId).apply { setText(p.elevenVoiceId) }
         val eModel = findViewById<EditText>(R.id.elevenModel).apply { setText(p.elevenModel) }
         val wakeSw = findViewById<SwitchCompat>(R.id.wakeSwitch).apply { isChecked = p.wakeMode }
+        val gttsSw = findViewById<SwitchCompat>(R.id.gttsSwitch).apply { isChecked = p.gtts }
+        val angerSw = findViewById<SwitchCompat>(R.id.angerSwitch).apply { isChecked = p.angerLock }
         val nat = findViewById<SwitchCompat>(R.id.natSwitch).apply { isChecked = p.naturalVoice }
         val vname = findViewById<EditText>(R.id.voiceName).apply { setText(p.voiceName) }
         val tmodel = findViewById<EditText>(R.id.ttsModel).apply { setText(p.ttsModel) }
@@ -127,6 +129,23 @@ class SettingsActivity : AppCompatActivity() {
         findViewById<Button>(R.id.btnPermOverlay).setOnClickListener {
             openScreen(Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName")))
         }
+        findViewById<Button>(R.id.btnPermAutostart).setOnClickListener {
+            try {
+                startActivity(Intent().setComponent(android.content.ComponentName("com.miui.securitycenter",
+                    "com.miui.permcenter.autostart.AutoStartManagementActivity")))
+            } catch (e: Exception) {
+                openScreen(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
+            }
+        }
+        findViewById<Button>(R.id.btnPermXiaomiBattery).setOnClickListener {
+            try {
+                startActivity(Intent().setComponent(android.content.ComponentName("com.miui.powerkeeper",
+                    "com.miui.powerkeeper.ui.HiddenAppsConfigActivity"))
+                    .putExtra("package_name", packageName).putExtra("package_label", "Nova AI"))
+            } catch (e: Exception) {
+                openScreen(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
+            }
+        }
         findViewById<Button>(R.id.btnPermApp).setOnClickListener {
             openScreen(Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:$packageName")))
         }
@@ -148,6 +167,8 @@ class SettingsActivity : AppCompatActivity() {
             p.elevenVoiceId = eVoice.text.toString().trim()
             p.elevenModel = eModel.text.toString().trim().ifEmpty { "eleven_multilingual_v2" }
             p.wakeMode = wakeSw.isChecked
+            p.gtts = gttsSw.isChecked
+            p.angerLock = angerSw.isChecked
             p.naturalVoice = nat.isChecked
             p.voiceName = vname.text.toString().trim().ifEmpty { "Kore" }
             p.ttsModel = tmodel.text.toString().trim().ifEmpty { "gemini-3.8-flash-tts" }

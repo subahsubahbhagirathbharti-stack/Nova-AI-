@@ -9,8 +9,8 @@ android {
         applicationId = "com.nova.ai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 15
-        versionName = "3.1"
+        versionCode = 16
+        versionName = "3.2"
     }
     buildTypes {
         release { isMinifyEnabled = false }

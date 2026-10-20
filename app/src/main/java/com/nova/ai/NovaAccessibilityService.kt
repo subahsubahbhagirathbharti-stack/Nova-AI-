@@ -63,11 +63,34 @@ class NovaAccessibilityService : AccessibilityService() {
     fun recents() = performGlobalAction(GLOBAL_ACTION_RECENTS)
     fun notifications() = performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
 
+    /** Turns the screen off and locks the phone (Android 9+). */
+    fun lockScreen(): Boolean =
+        if (android.os.Build.VERSION.SDK_INT >= 28) performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN) else false
+
     fun clickText(text: String): Boolean {
         val root = rootInActiveWindow ?: return false
-        var n: AccessibilityNodeInfo? = root.findAccessibilityNodeInfosByText(text).firstOrNull()
+        var node: AccessibilityNodeInfo? = root.findAccessibilityNodeInfosByText(text).firstOrNull()
+        if (node == null) {
+            // some apps only set contentDescription
+            val want = text.lowercase()
+            fun find(n: AccessibilityNodeInfo?, d: Int): AccessibilityNodeInfo? {
+                if (n == null || d > 25) return null
+                val cd = n.contentDescription?.toString()?.lowercase()
+                if (cd != null && cd.contains(want)) return n
+                for (i in 0 until n.childCount) find(n.getChild(i), d + 1)?.let { return it }
+                return null
+            }
+            node = find(root, 0)
+        }
+        if (node == null) return false
+        var n: AccessibilityNodeInfo? = node
         while (n != null && !n.isClickable) n = n.parent
-        return n?.performAction(AccessibilityNodeInfo.ACTION_CLICK) ?: false
+        if (n != null && n.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return true
+        // last resort: tap the middle of the element on screen
+        val r = android.graphics.Rect()
+        node.getBoundsInScreen(r)
+        if (r.width() > 0 && r.height() > 0) return tap(r.exactCenterX(), r.exactCenterY())
+        return false
     }
 
     fun screenText(): String {

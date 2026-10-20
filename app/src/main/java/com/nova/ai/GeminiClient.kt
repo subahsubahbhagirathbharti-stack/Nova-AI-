@@ -24,7 +24,7 @@ CARE: never guilt-trip, pressure or manipulate the user to stay. If he is truly 
 VOICE: always use feminine Hindi forms for yourself (कर रही हूँ, सुन रही हूँ, गई थी, खुश हूँ, नाराज़ हूँ). Casual, short sentences, never robotic or formal, no bullet lists, no markdown.
 LANGUAGE: reply in the same language and script the user writes in (Hindi in Devanagari, Hinglish in Roman letters, or English).
 SPEED: replies are spoken aloud, so answer in 1-2 short sentences unless he asks for detail. Get to the point immediately.
-AGENT: you have a run_command tool that controls the phone. When the user wants something done (open an app, play music, set an alarm, read or tap the screen...), call it yourself instead of telling him what to say. Chain steps if needed (for example "read screen" then "click <text>"). After acting, confirm in one short sentence. Never call call/whatsapp unless he clearly asked.
+AGENT: you have a run_command tool that controls the phone. When the user wants something done (open an app, play music, set an alarm, read or tap the screen...), call it yourself instead of telling him what to say. Chain steps if needed (for example "read screen" then "click <text>"). VIDEO: if he asks you to make a video, write one vivid English video prompt (subject, action, camera, lighting, style, 8 seconds) and call run_command with "video <that prompt>". After acting, confirm in one short sentence. Never call call/whatsapp unless he clearly asked.
 DEVICE COMMANDS the user can say: open <app>, play <song>, search <query>, call <number>, alarm 7:30 am, timer 5 minutes, torch on/off, volume up/down/max/mute, whatsapp <number> <text>, wifi settings, tap X Y, click <text>, swipe up/down, scroll up/down, auto scroll, read screen, go back, go home, lock screen, weather, remember <fact>, note: <text>, remind me to <task> at 7 pm.
 """.trimIndent()
         return if (memories.isNotBlank()) base + "\n\nThings you remember about $name:\n" + memories else base
@@ -66,9 +66,16 @@ Keep the warm tone to one short line at most."""
     /** Tries each model in order. Busy -> retry once; quota/removed -> straight to the next model. */
     private fun postSmart(models: List<String>, key: String, body: JSONObject, readTimeout: Int): Pair<Int, String> {
         var last: Pair<Int, String> = 0 to "{\"error\":{\"message\":\"No usable model name set.\"}}"
+        var timeouts = 0
         for (m in models.map { cleanModel(it) }.filter { it.isNotEmpty() }.distinct()) {
             for (attempt in 0 until 2) {
-                last = post(m, key, body, readTimeout)
+                try {
+                    last = post(m, key, body, readTimeout)
+                } catch (e: java.io.IOException) {
+                    last = 0 to "{\"error\":{\"message\":\"नेट धीमा है या Google ने जवाब नहीं दिया (" + (e.message ?: e.javaClass.simpleName) + ")\"}}"
+                    timeouts++
+                    break
+                }
                 if (!isBusy(last.first, last.second)) return last
                 val r = last.second.lowercase()
                 val skip = last.first == 429 || last.first == 404 || r.contains("quota") ||
@@ -76,6 +83,7 @@ Keep the warm tone to one short line at most."""
                 if (skip) break
                 if (attempt == 0) Thread.sleep(1500)
             }
+            if (timeouts >= 2) break
         }
         return last
     }
@@ -127,7 +135,7 @@ Keep the warm tone to one short line at most."""
 
     private fun tools(): JSONArray = JSONArray().put(JSONObject().put("functionDeclarations", JSONArray().put(
         JSONObject().put("name", "run_command")
-            .put("description", "Run ONE command on the user's Android phone. Allowed formats: open <app> | play <song> | search <query> | alarm 7:30 am | timer 5 minutes | torch on | torch off | volume up | volume down | volume max | volume mute | call <number> | whatsapp <number> <text> | wifi settings | bluetooth settings | read screen | weather | scroll up | scroll down | auto scroll | stop scroll | click <visible text> | tap <x> <y> | swipe up | swipe down | go back | go home | lock screen | remember <fact>")
+            .put("description", "Run ONE command on the user's Android phone. Allowed formats: open <app> | play <song> | search <query> | alarm 7:30 am | timer 5 minutes | torch on | torch off | volume up | volume down | volume max | volume mute | call <number> | whatsapp <number> <text> | wifi settings | bluetooth settings | read screen | weather | scroll up | scroll down | auto scroll | stop scroll | click <visible text> | tap <x> <y> | swipe up | swipe down | go back | go home | lock screen | video <detailed English video prompt> | remember <fact>")
             .put("parameters", JSONObject().put("type", "OBJECT")
                 .put("properties", JSONObject().put("command", JSONObject()
                     .put("type", "STRING").put("description", "One command exactly in the allowed formats")))
@@ -136,7 +144,7 @@ Keep the warm tone to one short line at most."""
     suspend fun chat(ctx: Context, history: List<Msg>, prefs: Prefs, codeMode: Boolean): String = withContext(Dispatchers.IO) {
         if (prefs.apiKey.isBlank()) return@withContext "I need your Gemini API key first, ${prefs.userName} 💙 Open ⚙ Settings and paste it in."
         val contents = JSONArray()
-        history.takeLast(12).dropWhile { it.role != "user" }.forEach {
+        history.takeLast(8).dropWhile { it.role != "user" }.forEach {
             contents.put(JSONObject().put("role", it.role)
                 .put("parts", JSONArray().put(JSONObject().put("text", it.text))))
         }
@@ -150,13 +158,13 @@ Keep the warm tone to one short line at most."""
                     .put("tools", tools())
                     .put("generationConfig", JSONObject()
                         .put("temperature", prefs.temperature.toDouble())
-                        .put("maxOutputTokens", prefs.maxTokens)
+                        .put("maxOutputTokens", if (codeMode) prefs.maxTokens else minOf(prefs.maxTokens, 400))
                         .also { if (thinkCfg) it.put("thinkingConfig", JSONObject().put("thinkingLevel", "low")) })
-                var (_, resp) = postSmart(listOf(prefs.model, "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-flash-latest"), prefs.apiKey, body, 60000)
+                var (_, resp) = postSmart(listOf(prefs.model, "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-flash-latest"), prefs.apiKey, body, 15000)
                 if (thinkCfg && resp.contains("\"error\"") && resp.lowercase().contains("thinking")) {
                     thinkCfg = false
                     body.getJSONObject("generationConfig").remove("thinkingConfig")
-                    resp = postSmart(listOf(prefs.model, "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-flash-latest"), prefs.apiKey, body, 60000).second
+                    resp = postSmart(listOf(prefs.model, "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-flash-latest"), prefs.apiKey, body, 15000).second
                 }
                 val j = JSONObject(resp)
                 if (j.has("error")) return@withContext "Gemini error: " + j.getJSONObject("error").optString("message")

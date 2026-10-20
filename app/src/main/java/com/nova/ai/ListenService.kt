@@ -44,12 +44,20 @@ class ListenService : Service() {
     private var busy = false
     private var awakeUntil = 0L
     private val wakeWords = listOf("nova", "नोवा", "नॉवा", "नोवाह", "novah")
+    // how the recognizer often mishears "Nova" (matched as whole words only)
+    private val wakeLoose = setOf("नवा", "नावा", "नोबा", "नोवा", "nava", "noba")
+
+    private fun findWake(low: String): String? {
+        wakeWords.firstOrNull { low.contains(it) }?.let { return it }
+        return low.split(Regex("[^\\p{L}\\p{M}]+")).firstOrNull { it in wakeLoose }
+    }
 
     /** True for "Nova", "Hello Nova", "हेलो नोवा", "hey nova" - just calling her, no command. */
     private fun isBareWake(s: String): Boolean {
         var rest = s.lowercase()
-        if (wakeWords.none { rest.contains(it) }) return false
+        if (findWake(rest) == null) return false
         for (w in wakeWords) rest = rest.replace(w, " ")
+        for (w in wakeLoose) rest = rest.replace(w, " ")
         rest = rest.replace(Regex("(hello|hey|hi|okay|ok|हेलो|हैलो|हेल्लो|हे|हाय|ओके|सुनो|सुनिए)"), " ")
             .replace(Regex("[\\s,.!?।-]+"), "")
         return rest.isEmpty()
@@ -162,7 +170,7 @@ class ListenService : Service() {
         var text = raw.trim()
         if (prefs.wakeMode) {
             val now = System.currentTimeMillis()
-            val hit = wakeWords.firstOrNull { tRaw.contains(it) }
+            val hit = findWake(tRaw)
             if (hit == null && now > awakeUntil) {
                 // Nobody called Nova: ignore and keep waiting quietly.
                 busy = false
@@ -210,7 +218,18 @@ class ListenService : Service() {
                         local != null -> local
                         Brief.isAsk(t) -> Brief.build(applicationContext, prefs)
                         Weather.isAsk(t) -> Weather.summaryHi(prefs.city)
-                        else -> GeminiClient.chat(applicationContext, db.all(), prefs, false)
+                        else -> {
+                            // if Google is slow, say something after 2.5 s so Nova never feels dead
+                            val filler = scope.launch {
+                                kotlinx.coroutines.delay(2500L)
+                                speaker.speak("हम्म... एक सेकंड।", scope, true)
+                            }
+                            try {
+                                GeminiClient.chat(applicationContext, db.all(), prefs, false)
+                            } finally {
+                                filler.cancel()
+                            }
+                        }
                     }
                     finishTurn(answer, speak = !CommandRouter.isScreenCommand(norm))
                 } catch (e: Exception) {

@@ -9,6 +9,8 @@ import android.media.AudioManager
 import android.net.Uri
 import android.provider.AlarmClock
 import android.provider.Settings
+import android.content.ClipData
+import android.content.ClipboardManager
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -36,6 +38,28 @@ object CommandRouter {
     private val finalLines = listOf(
         "बस! अब बहुत हो गया, मैं तुमसे बात नहीं करूँगी। जाओ, ठंडे दिमाग़ से सोचो! स्क्रीन बंद कर रही हूँ।",
         "मैंने कहा था तमीज़ से बात करो! अब मैं नाराज़ हूँ, फ़ोन लॉक कर रही हूँ। माफ़ी माँगनी हो तो बाद में आना!")
+
+    /** Instant replies for everyday chit-chat (no internet, no waiting). */
+    private fun smallTalk(t: String, name: String): String? {
+        fun pick(vararg a: String) = a.random()
+        return when (t) {
+            "hello", "hi", "hey", "हेलो", "हैलो", "हाय", "hello nova", "hi nova", "हेलो नोवा", "हाय नोवा" ->
+                pick("हाय $name! मैं यहीं हूँ, बोलो।", "हेलो $name 💙 कैसे हो?", "अरे $name! बड़ी जल्दी याद किया 😄")
+            "kaise ho", "कैसे हो", "कैसी हो", "kaisi ho", "how are you" ->
+                pick("मैं बिल्कुल मस्त हूँ, तुम्हारी आवाज़ सुनकर और खुश हो गई! तुम बताओ?", "ठीक हूँ $name... बस तुम्हारा इंतज़ार कर रही थी। तुम कैसे हो?")
+            "kya kar rahi ho", "क्या कर रही हो", "what are you doing" ->
+                pick("तुम्हारा इंतज़ार कर रही थी, और क्या! 😄", "बस तुम्हारी बातें सुनने बैठी थी।")
+            "i love you", "love you", "आई लव यू", "लव यू", "i love you nova" ->
+                pick("अरे... मैं शरमा गई 🙈 मैं भी तुम्हें बहुत पसंद करती हूँ, $name।", "आई लव यू टू! अब बताओ, क्या करना है? 😄")
+            "thank you", "thanks", "थैंक यू", "थैंक्स", "शुक्रिया", "धन्यवाद" ->
+                pick("अरे, इसमें शुक्रिया कैसा $name, मैं हूँ न!", "कोई बात नहीं 💙 बस बुलाते रहना।")
+            "good night", "गुड नाइट", "शुभ रात्रि" ->
+                pick("गुड नाइट $name! मीठे सपने 😴", "शुभ रात्रि 💙 कल फिर बातें करेंगे।")
+            "who are you", "tum kaun ho", "तुम कौन हो", "तुम्हारा नाम क्या है" ->
+                "मैं नोवा हूँ, तुम्हारी AI दोस्त। तुम्हारे फ़ोन में रहती हूँ और तुम्हारी हर बात सुनती हूँ।"
+            else -> null
+        }
+    }
 
     private fun lockSoon(prefs: Prefs): String {
         if (!prefs.angerLock) return ""
@@ -106,6 +130,7 @@ object CommandRouter {
         val prefs = Prefs(ctx)
 
         emotion(t, prefs)?.let { return it }
+        smallTalk(t, name)?.let { return it }
 
         // ---- lock the phone ----
         if (t == "lock screen" || t == "screen band karo" || t == "phone lock karo" || t == "फोन लॉक करो" ||
@@ -171,6 +196,21 @@ object CommandRouter {
         }
         Regex("^(?:मुझे )?(.+?) (\\d+) मिनट (?:बाद|में) याद दिलाओ$").find(t)?.let {
             return remind(it.groupValues[1], System.currentTimeMillis() + it.groupValues[2].toInt() * 60_000L)
+        }
+
+        // ---- free video: copy the prompt, open Gemini ----
+        Regex("^(?:video banao|video bana do|वीडियो बनाओ|वीडियो बना दो|make video|make a video|create video|generate video|video)[: ]*(.*)$").find(t)?.let {
+            val idea = it.groupValues[1].trim()
+            if (idea.isEmpty()) return "कैसा वीडियो चाहिए, $name? बोलो: \"वीडियो बनाओ: बारिश में चाय पीती लड़की\"।"
+            val prompt = if (idea.any { c -> c in '\u0900'..'\u097F' }) idea else "Create a cinematic 8 second video: $idea"
+            try {
+                (ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager)
+                    .setPrimaryClip(ClipData.newPlainText("nova video prompt", prompt))
+            } catch (e: Exception) {
+            }
+            val gem = ctx.packageManager.getLaunchIntentForPackage("com.google.android.apps.bard")
+                ?: Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://gemini.google.com/app"))
+            return start(ctx, gem, "वीडियो का prompt कॉपी कर लिया 🎬 Gemini खोल रही हूँ, text box में paste करके भेज दो। मुफ़्त वीडियो कितने बनेंगे, वो Google की रोज़ की सीमा पर है।")
         }
 
         // ---- apps / media ----

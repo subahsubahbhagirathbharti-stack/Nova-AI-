@@ -498,6 +498,7 @@ object CommandRouter {
 
     private fun youtube(ctx: Context, q: String, name: String): String {
         lastSong = q
+        ListenService.holdUntil = System.currentTimeMillis() + 45_000L
         val yt = Intent(Intent.ACTION_SEARCH).setPackage("com.google.android.youtube")
             .putExtra("query", q).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {

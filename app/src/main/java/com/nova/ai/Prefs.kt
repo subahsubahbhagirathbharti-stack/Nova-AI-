@@ -15,6 +15,7 @@ class Prefs(ctx: Context) {
     var notes: String get() = sp.getString("notes", "") ?: ""; set(v) = sp.edit().putString("notes", v).apply()
     var gtts: Boolean get() = sp.getBoolean("gtts", true); set(v) = sp.edit().putBoolean("gtts", v).apply()
     var angerLock: Boolean get() = sp.getBoolean("angerlock", true); set(v) = sp.edit().putBoolean("angerlock", v).apply()
+    var musicQuiet: Boolean get() = sp.getBoolean("musicquiet", true); set(v) = sp.edit().putBoolean("musicquiet", v).apply()
     var wakeMode: Boolean get() = sp.getBoolean("wakeword", true); set(v) = sp.edit().putBoolean("wakeword", v).apply()
     var naturalVoice: Boolean get() = sp.getBoolean("nat", true); set(v) = sp.edit().putBoolean("nat", v).apply()
     var voiceName: String get() = sp.getString("vname", "Kore") ?: "Kore"; set(v) = sp.edit().putString("vname", v).apply()

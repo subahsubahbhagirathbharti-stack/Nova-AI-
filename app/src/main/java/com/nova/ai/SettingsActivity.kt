@@ -38,6 +38,7 @@ class SettingsActivity : AppCompatActivity() {
         val eVoice = findViewById<EditText>(R.id.elevenVoiceId).apply { setText(p.elevenVoiceId) }
         val eModel = findViewById<EditText>(R.id.elevenModel).apply { setText(p.elevenModel) }
         val wakeSw = findViewById<SwitchCompat>(R.id.wakeSwitch).apply { isChecked = p.wakeMode }
+        val musicSw = findViewById<SwitchCompat>(R.id.musicSwitch).apply { isChecked = p.musicQuiet }
         val gttsSw = findViewById<SwitchCompat>(R.id.gttsSwitch).apply { isChecked = p.gtts }
         val angerSw = findViewById<SwitchCompat>(R.id.angerSwitch).apply { isChecked = p.angerLock }
         val nat = findViewById<SwitchCompat>(R.id.natSwitch).apply { isChecked = p.naturalVoice }
@@ -167,6 +168,7 @@ class SettingsActivity : AppCompatActivity() {
             p.elevenVoiceId = eVoice.text.toString().trim()
             p.elevenModel = eModel.text.toString().trim().ifEmpty { "eleven_multilingual_v2" }
             p.wakeMode = wakeSw.isChecked
+            p.musicQuiet = musicSw.isChecked
             p.gtts = gttsSw.isChecked
             p.angerLock = angerSw.isChecked
             p.naturalVoice = nat.isChecked

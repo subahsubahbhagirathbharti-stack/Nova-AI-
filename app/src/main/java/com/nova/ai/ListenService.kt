@@ -29,6 +29,8 @@ class ListenService : Service() {
     companion object {
         const val ACTION_STOP = "com.nova.ai.STOP"
         @Volatile var running = false
+        /** While music plays, Nova keeps the mic off so the song is not paused by speech recognition. */
+        @Volatile var holdUntil = 0L
         var lastState = "idle"
         var onState: ((String) -> Unit)? = null
         var onChange: (() -> Unit)? = null
@@ -106,6 +108,16 @@ class ListenService : Service() {
 
     private fun listen() {
         if (!running) return
+        if (prefs.musicQuiet) {
+            val am = getSystemService(AUDIO_SERVICE) as android.media.AudioManager
+            if (am.isMusicActive || System.currentTimeMillis() < holdUntil) {
+                recognizer?.destroy()
+                recognizer = null
+                state("idle")
+                main.postDelayed({ if (running && !busy) listen() }, 3000L)
+                return
+            }
+        }
         recognizer?.destroy()
         if (!SpeechRecognizer.isRecognitionAvailable(this)) {
             Toast.makeText(this, "इस फोन में speech recognition नहीं है", Toast.LENGTH_LONG).show()

@@ -58,6 +58,29 @@ class NovaAccessibilityService : AccessibilityService() {
         h.removeCallbacks(autoRun)
     }
 
+    /** Tap at a fraction of the screen, e.g. tapAt(0.5f, 0.3f) = middle, 30% from the top. */
+    fun tapAt(fx: Float, fy: Float): Boolean {
+        val dm = resources.displayMetrics
+        return tap(dm.widthPixels * fx, dm.heightPixels * fy)
+    }
+
+    /** Types text into the field that currently has input focus. */
+    fun typeText(text: String): Boolean {
+        val root = rootInActiveWindow ?: return false
+        val f = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) ?: return false
+        val args = android.os.Bundle()
+        args.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, text)
+        return f.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, args)
+    }
+
+    /** Presses the keyboard's Enter/Search key in the focused field (Android 11+). */
+    fun pressEnter(): Boolean {
+        if (android.os.Build.VERSION.SDK_INT < 30) return false
+        val root = rootInActiveWindow ?: return false
+        val f = root.findFocus(AccessibilityNodeInfo.FOCUS_INPUT) ?: return false
+        return f.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id)
+    }
+
     fun back() = performGlobalAction(GLOBAL_ACTION_BACK)
     fun home() = performGlobalAction(GLOBAL_ACTION_HOME)
     fun recents() = performGlobalAction(GLOBAL_ACTION_RECENTS)

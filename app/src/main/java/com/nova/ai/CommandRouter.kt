@@ -9,6 +9,8 @@ import android.media.AudioManager
 import android.net.Uri
 import android.provider.AlarmClock
 import android.provider.Settings
+import android.content.pm.PackageManager
+import android.provider.ContactsContract
 import android.content.ClipData
 import android.content.ClipboardManager
 import java.text.SimpleDateFormat
@@ -38,6 +40,105 @@ object CommandRouter {
     private val finalLines = listOf(
         "बस! अब बहुत हो गया, मैं तुमसे बात नहीं करूँगी। जाओ, ठंडे दिमाग़ से सोचो! स्क्रीन बंद कर रही हूँ।",
         "मैंने कहा था तमीज़ से बात करो! अब मैं नाराज़ हूँ, फ़ोन लॉक कर रही हूँ। माफ़ी माँगनी हो तो बाद में आना!")
+
+    // ---- helpers for multi-step actions ----
+    private val ui = android.os.Handler(android.os.Looper.getMainLooper())
+    private var lastSong = ""
+
+    /** Tries to click one of [texts] at each delay until it works. */
+    private fun clickLater(texts: List<String>, delays: List<Long>, skipIfScreenHas: List<String> = emptyList()) {
+        var done = false
+        for (d in delays) ui.postDelayed({
+            if (done) return@postDelayed
+            val svc = NovaAccessibilityService.instance ?: return@postDelayed
+            val st = svc.screenText().lowercase()
+            if (skipIfScreenHas.any { st.contains(it) }) { done = true; return@postDelayed }
+            if (texts.any { svc.clickText(it) }) done = true
+        }, d)
+    }
+
+    private val knownApps = mapOf(
+        "instagram" to "com.instagram.android", "इंस्टाग्राम" to "com.instagram.android",
+        "facebook" to "com.facebook.katana", "फेसबुक" to "com.facebook.katana",
+        "whatsapp" to "com.whatsapp", "youtube" to "com.google.android.youtube",
+        "telegram" to "org.telegram.messenger", "टेलीग्राम" to "org.telegram.messenger",
+        "snapchat" to "com.snapchat.android", "स्नैपचैट" to "com.snapchat.android",
+        "spotify" to "com.spotify.music", "स्पॉटिफाई" to "com.spotify.music",
+        "chrome" to "com.android.chrome", "क्रोम" to "com.android.chrome",
+        "gmail" to "com.google.android.gm", "जीमेल" to "com.google.android.gm",
+        "twitter" to "com.twitter.android", "ट्विटर" to "com.twitter.android",
+        "netflix" to "com.netflix.mediaclient", "नेटफ्लिक्स" to "com.netflix.mediaclient",
+        "paytm" to "net.one97.paytm", "पेटीएम" to "net.one97.paytm",
+        "phonepe" to "com.phonepe.app", "फोनपे" to "com.phonepe.app",
+        "gpay" to "com.google.android.apps.nbu.paisa.user", "google pay" to "com.google.android.apps.nbu.paisa.user",
+        "amazon" to "in.amazon.mShop.android.shopping", "flipkart" to "com.flipkart.android",
+        "meesho" to "com.meesho.supply", "truecaller" to "com.truecaller", "mx player" to "com.mxtech.videoplayer.ad")
+
+    private fun playStore(ctx: Context, q: String, name: String): String {
+        val app = q.trim()
+        val pkg = knownApps[app]
+        val uri = if (pkg != null) "market://details?id=$pkg" else "market://search?q=" + Uri.encode(app) + "&c=apps"
+        val i = Intent(Intent.ACTION_VIEW, Uri.parse(uri)).setPackage("com.android.vending").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        try {
+            ctx.startActivity(i)
+        } catch (e: Exception) {
+            return "Play Store नहीं खुल पाया, $name। क्या ये फ़ोन में है?"
+        }
+        val hasA11y = NovaAccessibilityService.instance != null
+        if (pkg != null && hasA11y) {
+            clickLater(listOf("Install", "इंस्टॉल करें", "इंस्टॉल"), listOf(4500L, 8000L, 12000L),
+                skipIfScreenHas = listOf("uninstall", "अनइंस्टॉल"))
+            return "Play Store में $app खोल दिया 📲 अब Install दबाने की कोशिश कर रही हूँ।"
+        }
+        return if (pkg != null) "Play Store में $app खोल दिया 📲 Install बटन दबा दो (Screen control चालू हो तो मैं खुद दबा दूँगी)।"
+        else "Play Store में \"$app\" खोज रही हूँ 🔎 सही app चुनकर Install दबा दो।"
+    }
+
+    private fun contactNumber(ctx: Context, who: String): String? {
+        val digits = who.filter { it.isDigit() }
+        if (digits.length >= 8) return digits
+        if (ctx.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED) return null
+        return try {
+            ctx.contentResolver.query(
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
+                arrayOf(ContactsContract.CommonDataKinds.Phone.NUMBER),
+                ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME + " LIKE ?",
+                arrayOf("%" + who.trim() + "%"), null
+            )?.use { c -> if (c.moveToFirst()) c.getString(0) else null }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    private fun sendMessage(ctx: Context, who: String, text: String, name: String): String {
+        if (ctx.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED && who.filter { it.isDigit() }.length < 8) {
+            return "तुम्हारे contacts देखने की permission चाहिए, $name। Settings में App info खोलकर Contacts की permission दे दो, या सीधे नंबर बोलो।"
+        }
+        var num = contactNumber(ctx, who)?.filter { it.isDigit() }
+            ?: return "\"$who\" नाम का contact नहीं मिला, $name। नाम फिर से बोलो या नंबर बता दो।"
+        if (num.startsWith("0")) num = num.trimStart('0')
+        if (num.length == 10) num = "91$num"
+        val i = Intent(Intent.ACTION_VIEW, Uri.parse("https://wa.me/$num?text=" + Uri.encode(text))).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (ctx.packageManager.getLaunchIntentForPackage("com.whatsapp") != null) i.setPackage("com.whatsapp")
+        try {
+            ctx.startActivity(i)
+        } catch (e: Exception) {
+            return "WhatsApp नहीं खुल पाया, $name।"
+        }
+        if (NovaAccessibilityService.instance == null) {
+            return "$who के लिए मैसेज तैयार कर दिया 💌 Send दबा दो (Screen control चालू हो तो मैं खुद भेज दूँगी)।"
+        }
+        clickLater(listOf("Send", "भेजें"), listOf(4500L, 7000L))
+        return "ठीक है $name, $who को भेज रही हूँ: \"$text\" 💌"
+    }
+
+    private val moods = listOf(
+        listOf("sad", "उदास", "दुखी", "dukhi", "breakup") to "sad hindi songs",
+        listOf("romantic", "रोमांटिक", "love", "प्यार") to "romantic hindi songs",
+        listOf("happy", "खुश", "khush") to "happy hindi songs",
+        listOf("party", "डांस", "dance") to "party songs hindi",
+        listOf("motivat", "मोटिवेशन", "जोश") to "motivational songs hindi",
+        listOf("sleep", "relax", "नींद", "सुकून", "शांत") to "relaxing hindi songs")
 
     /** Instant replies for everyday chit-chat (no internet, no waiting). */
     private fun smallTalk(t: String, name: String): String? {
@@ -100,6 +201,9 @@ object CommandRouter {
         "स्क्रीन नीचे करो" to "scroll down", "scroll neeche" to "scroll down",
         "स्क्रॉल अप" to "scroll up", "ऊपर स्क्रॉल करो" to "scroll up", "ऊपर जाओ" to "scroll up",
         "स्क्रीन ऊपर करो" to "scroll up", "scroll upar" to "scroll up",
+        "ऊपर करो" to "scroll up", "ऊपर" to "scroll up", "upar karo" to "scroll up", "upar" to "scroll up",
+        "नीचे करो" to "scroll down", "नीचे" to "scroll down", "neeche karo" to "scroll down", "niche karo" to "scroll down",
+        "neeche" to "scroll down", "niche" to "scroll down",
         "पीछे जाओ" to "go back", "वापस जाओ" to "go back", "बैक" to "go back",
         "होम जाओ" to "go home", "होम स्क्रीन" to "go home", "होम" to "go home",
         "बाएं स्वाइप करो" to "swipe left", "दाएं स्वाइप करो" to "swipe right",
@@ -211,6 +315,42 @@ object CommandRouter {
             val gem = ctx.packageManager.getLaunchIntentForPackage("com.google.android.apps.bard")
                 ?: Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://gemini.google.com/app"))
             return start(ctx, gem, "वीडियो का prompt कॉपी कर लिया 🎬 Gemini खोल रही हूँ, text box में paste करके भेज दो। मुफ़्त वीडियो कितने बनेंगे, वो Google की रोज़ की सीमा पर है।")
+        }
+
+        // ---- Play Store ----
+        if (Regex("^(?:play store|playstore|प्ले स्टोर)(?: kholo| open| खोलो| खोल दो)?$").matches(t)) {
+            val i = ctx.packageManager.getLaunchIntentForPackage("com.android.vending")
+                ?: return "Play Store नहीं मिला, $name।"
+            return start(ctx, i, "Play Store खोल रही हूँ 📲")
+        }
+        Regex("^(?:please )?(?:download |install |डाउनलोड |इंस्टॉल )?(.+?)(?: download karo| download kar do| download| install karo| install kar do| डाउनलोड करो| डाउनलोड कर दो| इंस्टॉल करो| इंस्टॉल कर दो)$")
+            .find(t)?.let { return playStore(ctx, it.groupValues[1], name) }
+        Regex("^(?:download|install|डाउनलोड|इंस्टॉल) (.+)$").find(t)?.let { return playStore(ctx, it.groupValues[1], name) }
+
+        // ---- send a message ----
+        val msgPatterns = listOf(
+            Regex("^(?:please )?(?:send message to|send a message to|message|msg|whatsapp) (.+?) (?:saying|that|ki|कि|:) ?(.+)$"),
+            Regex("^(.+?) (?:ko|को) (?:message|msg|मैसेज|मेसेज|whatsapp|व्हाट्सएप|व्हाट्सऐप) (?:bhejo|bhej do|karo|भेजो|भेज दो|करो)(?: ki| कि| :)? ?(.+)$"))
+        for (r in msgPatterns) r.find(t)?.let { return sendMessage(ctx, it.groupValues[1], it.groupValues[2], name) }
+
+        // ---- typing / enter ----
+        Regex("^(?:type|टाइप करो|टाइप कर) (.+)$").find(t)?.let {
+            val svc = NovaAccessibilityService.instance ?: return "Screen control चालू करो तब मैं type कर पाऊँगी, $name।"
+            return if (svc.typeText(it.groupValues[1])) "लिख दिया ✍️ \"${it.groupValues[1]}\""
+            else "कोई text box चुना हुआ नहीं मिला, पहले उस पर टैप करो, $name।"
+        }
+        if (t == "press enter" || t == "enter dabao" || t == "एंटर दबाओ" || t == "search dabao" || t == "सर्च दबाओ") {
+            val svc = NovaAccessibilityService.instance ?: return "Screen control चालू करो, $name।"
+            return if (svc.pressEnter()) "दबा दिया 👍" else "Enter नहीं दब पाया, $name।"
+        }
+
+        // ---- songs by mood / next song ----
+        if (t in setOf("dusra gana", "dusra gana lagao", "दूसरा गाना", "दूसरा गाना लगाओ", "next song", "next gana", "agla gana", "अगला गाना")) {
+            return if (lastSong.isNotBlank()) youtube(ctx, "songs like $lastSong", name)
+            else "कौन सा मूड है, $name? sad, romantic, happy, party या motivation?"
+        }
+        if (listOf("gana", "gaana", "song", "गाना", "गाने", "music").any { t.contains(it) } && !t.startsWith("play ")) {
+            moods.firstOrNull { (keys, _) -> keys.any { t.contains(it) } }?.let { return youtube(ctx, it.second, name) }
         }
 
         // ---- apps / media ----
@@ -357,6 +497,7 @@ object CommandRouter {
     }
 
     private fun youtube(ctx: Context, q: String, name: String): String {
+        lastSong = q
         val yt = Intent(Intent.ACTION_SEARCH).setPackage("com.google.android.youtube")
             .putExtra("query", q).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         try {
@@ -366,6 +507,13 @@ object CommandRouter {
                 Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(q)))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
         }
-        return "YouTube पर \"$q\" खोज रही हूँ 🎶 पहले वीडियो के लिए बोलो: click $q"
+        val svc = NovaAccessibilityService.instance
+        return if (svc != null) {
+            // best effort: tap the first result once the list has loaded
+            ui.postDelayed({ NovaAccessibilityService.instance?.tapAt(0.5f, 0.30f) }, 4500L)
+            "YouTube पर \"$q\" खोजकर पहला वीडियो चला रही हूँ 🎶 बताओ $name, ऊपर करूँ, नीचे करूँ, कुछ type करूँ, या मूड के हिसाब से दूसरा गाना लगाऊँ?"
+        } else {
+            "YouTube पर \"$q\" खोज रही हूँ 🎶 पहला वीडियो खुद चलाने के लिए Screen control चालू करो।"
+        }
     }
 }

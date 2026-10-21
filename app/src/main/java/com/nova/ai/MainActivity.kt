@@ -46,6 +46,7 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var camQuestion = ""
+    private val askContacts = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private fun shotFile() = java.io.File(java.io.File(cacheDir, "images").apply { mkdirs() }, "nova_shot.jpg")
     private val takePic = registerForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
         if (ok) analyzePhoto() else Toast.makeText(this, "फोटो नहीं ली गई", Toast.LENGTH_SHORT).show()
@@ -132,6 +133,11 @@ class MainActivity : AppCompatActivity() {
             }
         }
         Brief.schedule(this, prefs)
+        val flags = getSharedPreferences("flags", MODE_PRIVATE)
+        if (checkSelfPermission(Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED && !flags.getBoolean("askedContacts", false)) {
+            flags.edit().putBoolean("askedContacts", true).apply()
+            askContacts.launch(Manifest.permission.READ_CONTACTS)
+        }
         mic.setOnClickListener { speaker.stop(); toggleListening() }
         findViewById<TextView>(R.id.btnSettings).setOnClickListener {
             startActivity(Intent(this, SettingsActivity::class.java))
@@ -162,6 +168,7 @@ class MainActivity : AppCompatActivity() {
         } else {
             val p = mutableListOf(Manifest.permission.RECORD_AUDIO)
             if (Build.VERSION.SDK_INT >= 33) p.add(Manifest.permission.POST_NOTIFICATIONS)
+            p.add(Manifest.permission.READ_CONTACTS)
             perms.launch(p.toTypedArray())
         }
     }

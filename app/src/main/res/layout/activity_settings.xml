@@ -34,6 +34,18 @@
             android:layout_marginTop="8dp" android:text="Wake word: बोलो Nova या नोवा तब जवाब दूँगी"
             android:textColor="@color/text" />
 
+        <androidx.appcompat.widget.SwitchCompat android:id="@+id/fastSwitch"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="Fast mode: फ़ोन की आवाज़ में तुरंत बोलो (बंद करो तो Gemini/Google आवाज़, पर देर से)"
+            android:textColor="@color/text" />
+        <androidx.appcompat.widget.SwitchCompat android:id="@+id/liteSwitch"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="Lite screen: हल्का animation (कम RAM वाले फ़ोन के लिए)"
+            android:textColor="@color/text" />
+        <androidx.appcompat.widget.SwitchCompat android:id="@+id/autoSwitch"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="फ़ोन restart होने पर अपने आप सुनना शुरू करो (experimental)"
+            android:textColor="@color/text" />
         <androidx.appcompat.widget.SwitchCompat android:id="@+id/musicSwitch"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="8dp" android:text="गाना चलते समय mic बंद रखो (गाना बीच में न रुके)"
@@ -104,6 +116,8 @@
             android:layout_height="wrap_content" android:layout_marginTop="16dp"
             android:text="Enable screen control (Accessibility)" />
         <TextView style="@style/Label" android:layout_marginTop="16dp" android:text="Permissions (Jarvis control) - एक-एक करके ON करो" />
+        <Button android:id="@+id/btnPermAll" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="सब permissions एक साथ माँगो (mic, contacts, call, notifications)" />
         <Button android:id="@+id/btnPermNotif" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:text="Notification access (notifications पढ़ने के लिए)" />
         <Button android:id="@+id/btnPermBattery" android:layout_width="match_parent"

@@ -69,7 +69,7 @@ class ListenService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         if (intent?.action == ACTION_STOP) { stopSelf(); return START_NOT_STICKY }
-        if (running) return START_NOT_STICKY
+        if (running) return START_STICKY
         startForegroundCompat()
         running = true
         prefs = Prefs(this)
@@ -82,7 +82,7 @@ class ListenService : Service() {
         busy = true
         state("speaking")
         speaker.speak("हाँ ${prefs.userName}, मैं सुन रही हूँ।", scope, true) { busy = false; awakeUntil = System.currentTimeMillis() + 20000L; listen() }
-        return START_NOT_STICKY
+        return START_STICKY
     }
 
     private fun startForegroundCompat() {

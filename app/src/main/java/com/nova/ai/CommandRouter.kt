@@ -14,6 +14,9 @@ import android.provider.ContactsContract
 import android.content.ClipData
 import android.content.ClipboardManager
 import java.text.SimpleDateFormat
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import java.util.Locale
 
 /** Handles device commands locally. Returns Nova's reply, or null to send the text to Gemini. */
@@ -47,6 +50,22 @@ object CommandRouter {
 
     /** Set by the screen / listening service so Nova can report the real result of slow actions. */
     @Volatile var followUp: ((String) -> Unit)? = null
+
+    private fun notifyUser(ctx: Context, m: String) {
+        val out = followUp
+        if (out != null) out(m) else android.widget.Toast.makeText(ctx.applicationContext, m, android.widget.Toast.LENGTH_LONG).show()
+    }
+
+    private fun callName(ctx: Context, who: String, name: String): String {
+        val noPerm = ctx.checkSelfPermission(android.Manifest.permission.READ_CONTACTS) != PackageManager.PERMISSION_GRANTED
+        if (noPerm && who.count { it.isDigit() } < 5) {
+            return "Contacts की permission चाहिए, $name। Settings में \"सब permissions एक साथ\" दबाओ।"
+        }
+        val num = contactNumber(ctx, who) ?: return "\"$who\" नाम का contact नहीं मिला, $name।"
+        val canCall = ctx.checkSelfPermission(android.Manifest.permission.CALL_PHONE) == PackageManager.PERMISSION_GRANTED
+        val i = Intent(if (canCall) Intent.ACTION_CALL else Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(num)))
+        return start(ctx, i, if (canCall) "$who को call लगा रही हूँ 📞" else "डायलर खोल दिया 📞 — call दबा दो।")
+    }
 
     /** Presses WhatsApp's Send button (several tries, then checks it really went) and reports the true result. */
     private fun sendWhatsAppLater(ctx: Context, who: String) {
@@ -422,6 +441,8 @@ object CommandRouter {
             val num = it.groupValues[1].replace(" ", "")
             return start(ctx, Intent(Intent.ACTION_DIAL, Uri.parse("tel:" + Uri.encode(num))), "डायलर खोल दिया $num 📞 — call दबा दो।")
         }
+        Regex("^(?:call|dial|कॉल करो|फोन करो) (.+)$").find(t)?.let { return callName(ctx, it.groupValues[1], name) }
+        Regex("^(.+?) (?:ko|को) (?:call|कॉल|फोन) (?:karo|करो|kar do|कर दो)$").find(t)?.let { return callName(ctx, it.groupValues[1], name) }
         Regex("^(?:send )?whatsapp (\\d{8,15}) (.+)$").find(t)?.let {
             val url = "https://wa.me/" + it.groupValues[1] + "?text=" + Uri.encode(it.groupValues[2])
             return start(ctx, Intent(Intent.ACTION_VIEW, Uri.parse(url)), "WhatsApp तैयार है, बस send दबाओ 💬")
@@ -437,6 +458,23 @@ object CommandRouter {
                 else -> Settings.ACTION_BATTERY_SAVER_SETTINGS
             }
             return start(ctx, Intent(action), "${it.groupValues[1]} settings खोल रही हूँ।")
+        }
+
+        // ---- look at the screen (screenshot -> Gemini vision) ----
+        if (t in setOf("see screen", "screen dekho", "स्क्रीन देखो", "ye kya hai", "ये क्या है", "what is on screen", "screen batao", "स्क्रीन बताओ")) {
+            val svc = NovaAccessibilityService.instance
+                ?: return start(ctx, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), "स्क्रीन देखने के लिए Screen control चालू करो, $name।")
+            if (android.os.Build.VERSION.SDK_INT < 30) return "इस फ़ोन के Android पर मैं screenshot नहीं ले सकती, $name।"
+            svc.screenshot { jpeg ->
+                if (jpeg == null) {
+                    notifyUser(ctx, "स्क्रीन नहीं देख पाई 😕 Accessibility को एक बार बंद करके फिर चालू करके देखो।")
+                } else {
+                    CoroutineScope(Dispatchers.Main).launch {
+                        notifyUser(ctx, GeminiClient.vision(prefs, jpeg, "इस स्क्रीन पर क्या दिख रहा है? हिंदी में 2-3 छोटे वाक्यों में बताओ।"))
+                    }
+                }
+            }
+            return "ठीक है, स्क्रीन देख रही हूँ 👀"
         }
 
         // ---- read notifications (needs Notification access) ----

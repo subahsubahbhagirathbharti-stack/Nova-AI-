@@ -58,6 +58,43 @@ class NovaAccessibilityService : AccessibilityService() {
         h.removeCallbacks(autoRun)
     }
 
+    /** Takes a screenshot (Android 11+) and returns it as a small JPEG, or null if it failed. */
+    fun screenshot(cb: (ByteArray?) -> Unit) {
+        if (android.os.Build.VERSION.SDK_INT < 30) { cb(null); return }
+        try {
+            takeScreenshot(android.view.Display.DEFAULT_DISPLAY, mainExecutor, object : TakeScreenshotCallback {
+                override fun onSuccess(r: ScreenshotResult) {
+                    var out: ByteArray? = null
+                    try {
+                        val hb = r.hardwareBuffer
+                        val hw = android.graphics.Bitmap.wrapHardwareBuffer(hb, r.colorSpace)
+                        hb.close()
+                        if (hw != null) {
+                            val soft = hw.copy(android.graphics.Bitmap.Config.ARGB_8888, false)
+                            hw.recycle()
+                            if (soft != null) {
+                                val sc = minOf(1f, 1024f / maxOf(soft.width, soft.height))
+                                val small = if (sc < 1f) android.graphics.Bitmap.createScaledBitmap(
+                                    soft, (soft.width * sc).toInt(), (soft.height * sc).toInt(), true) else soft
+                                val bos = java.io.ByteArrayOutputStream()
+                                small.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, bos)
+                                out = bos.toByteArray()
+                            }
+                        }
+                    } catch (e: Throwable) {
+                    }
+                    cb(out)
+                }
+
+                override fun onFailure(errorCode: Int) {
+                    cb(null)
+                }
+            })
+        } catch (e: Exception) {
+            cb(null)
+        }
+    }
+
     fun activePackage(): String? = rootInActiveWindow?.packageName?.toString()
 
     fun hasId(id: String): Boolean =

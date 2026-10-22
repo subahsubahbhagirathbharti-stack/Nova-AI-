@@ -11,6 +11,8 @@ import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
 class SettingsActivity : AppCompatActivity() {
+    private val permsLauncher = registerForActivityResult(androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()) { }
+
 
     private fun watch(sb: SeekBar, f: () -> Unit) {
         sb.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
@@ -38,6 +40,9 @@ class SettingsActivity : AppCompatActivity() {
         val eVoice = findViewById<EditText>(R.id.elevenVoiceId).apply { setText(p.elevenVoiceId) }
         val eModel = findViewById<EditText>(R.id.elevenModel).apply { setText(p.elevenModel) }
         val wakeSw = findViewById<SwitchCompat>(R.id.wakeSwitch).apply { isChecked = p.wakeMode }
+        val fastSw = findViewById<SwitchCompat>(R.id.fastSwitch).apply { isChecked = p.fastVoice }
+        val liteSw = findViewById<SwitchCompat>(R.id.liteSwitch).apply { isChecked = p.liteUi }
+        val autoSw = findViewById<SwitchCompat>(R.id.autoSwitch).apply { isChecked = p.autoStart }
         val musicSw = findViewById<SwitchCompat>(R.id.musicSwitch).apply { isChecked = p.musicQuiet }
         val gttsSw = findViewById<SwitchCompat>(R.id.gttsSwitch).apply { isChecked = p.gtts }
         val angerSw = findViewById<SwitchCompat>(R.id.angerSwitch).apply { isChecked = p.angerLock }
@@ -88,7 +93,7 @@ class SettingsActivity : AppCompatActivity() {
                 if (pcm != null && pcm.size > 2) {
                     Speaker.netBlockedUntil = 0L
                     report("Gemini voice test", "OK — natural आवाज़ बन गई (%.1f सेकंड)। अब सुनाती हूँ।".format(secs))
-                    Speaker(this@SettingsActivity, p).speak("नमस्ते, मैं नोवा हूँ।", lifecycleScope, true)
+                    Speaker(this@SettingsActivity, p).speak("नमस्ते, मैं नोवा हूँ।", lifecycleScope, true, natural = true)
                 } else {
                     report("Gemini voice test", "आवाज़ नहीं बनी।\n\nकारण: " + GeminiClient.lastTtsError.ifBlank { "पता नहीं चला" } +
                         "\n\nइसका screenshot Claude को भेज दो।")
@@ -178,6 +183,16 @@ class SettingsActivity : AppCompatActivity() {
         fun openScreen(i: Intent) {
             try { startActivity(i) } catch (e: Exception) { Toast.makeText(this, "ये screen इस फोन पर नहीं खुली", Toast.LENGTH_LONG).show() }
         }
+        findViewById<Button>(R.id.btnPermAll).setOnClickListener {
+            val want = ArrayList<String>()
+            want.add(android.Manifest.permission.RECORD_AUDIO)
+            want.add(android.Manifest.permission.READ_CONTACTS)
+            want.add(android.Manifest.permission.CALL_PHONE)
+            if (android.os.Build.VERSION.SDK_INT >= 33) want.add(android.Manifest.permission.POST_NOTIFICATIONS)
+            val need = want.filter { checkSelfPermission(it) != android.content.pm.PackageManager.PERMISSION_GRANTED }
+            if (need.isEmpty()) Toast.makeText(this, "ये सारी permissions पहले से मिली हुई हैं ✅", Toast.LENGTH_LONG).show()
+            else permsLauncher.launch(need.toTypedArray())
+        }
         findViewById<Button>(R.id.btnPermNotif).setOnClickListener { openScreen(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) }
         findViewById<Button>(R.id.btnPermBattery).setOnClickListener {
             openScreen(Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS, Uri.parse("package:$packageName")))
@@ -223,6 +238,9 @@ class SettingsActivity : AppCompatActivity() {
             p.elevenVoiceId = eVoice.text.toString().trim()
             p.elevenModel = eModel.text.toString().trim().ifEmpty { "eleven_multilingual_v2" }
             p.wakeMode = wakeSw.isChecked
+            p.fastVoice = fastSw.isChecked
+            p.liteUi = liteSw.isChecked
+            p.autoStart = autoSw.isChecked
             p.musicQuiet = musicSw.isChecked
             p.gtts = gttsSw.isChecked
             p.angerLock = angerSw.isChecked

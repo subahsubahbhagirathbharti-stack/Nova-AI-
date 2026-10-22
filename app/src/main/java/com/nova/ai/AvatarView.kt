@@ -28,10 +28,36 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
     private val dst = RectF()
     private val src = android.graphics.Rect()
     private val bmpPaint = Paint(Paint.ANTI_ALIAS_FLAG or Paint.FILTER_BITMAP_FLAG)
+    private val lite: Boolean = Prefs(ctx).liteUi
+    private var circleBmp: Bitmap? = null
+    private var circleD = 0
     private val photo: Bitmap? = try {
         BitmapFactory.decodeResource(resources, R.drawable.nova_avatar)
     } catch (e: Throwable) {
         null
+    }
+
+    override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
+        super.onSizeChanged(w, h, ow, oh)
+        circleBmp = null
+        val pic = photo ?: return
+        val u = minOf(h / 100f, w / 64f)
+        val d = minOf(w - 12f, 90f * u).toInt()
+        if (d <= 0) return
+        try {
+            val side = minOf((pic.width * 0.80f).toInt(), pic.height)
+            val sx = ((pic.width - side) / 2f).toInt()
+            val out = Bitmap.createBitmap(d, d, Bitmap.Config.ARGB_8888)
+            val cv = Canvas(out)
+            val pth = Path()
+            pth.addCircle(d / 2f, d / 2f, d / 2f, Path.Direction.CW)
+            cv.clipPath(pth)
+            cv.drawBitmap(pic, android.graphics.Rect(sx, 0, sx + side, side), RectF(0f, 0f, d.toFloat(), d.toFloat()), bmpPaint)
+            circleBmp = out
+            circleD = d
+        } catch (e: Throwable) {
+            circleBmp = null
+        }
     }
 
     private fun fill(color: Int, alpha: Int = 255) {
@@ -54,7 +80,7 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
         if (u <= 0f) return
         val cx = width / 2f
         val y0 = (height - 100f * u) / 2f
-        val bob = sin(t * 1.6f) * 0.9f * u
+        val bob = if (lite) 0f else sin(t * 1.6f) * 0.9f * u
         val speaking = mode == "speaking"
         val angry = System.currentTimeMillis() < CommandRouter.angryUntil
         val glow = if (angry) 0xFFFF3B30.toInt() else when (mode) {
@@ -71,7 +97,7 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
 
         // aura
         val pulse = 1f + 0.04f * sin(t * (if (speaking) 9f else 3f))
-        for (i in 0 until 5) {
+        for (i in 0 until (if (lite) 2 else 5)) {
             fill(glow, 14 + i * 10)
             c.drawCircle(cx, Y(48f), (46f - i * 6f) * u * pulse, p)
         }
@@ -88,10 +114,15 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
             dst.set(cx - rad, cyy - rad, cx + rad, cyy + rad)
             c.save()
             c.scale(sc, sc, cx, cyy)
-            path.reset()
-            path.addCircle(cx, cyy, rad, Path.Direction.CW)
-            c.clipPath(path)
-            c.drawBitmap(pic, src, dst, bmpPaint)
+            val cb = circleBmp
+            if (cb != null) {
+                c.drawBitmap(cb, null, dst, bmpPaint)
+            } else {
+                path.reset()
+                path.addCircle(cx, cyy, rad, Path.Direction.CW)
+                c.clipPath(path)
+                c.drawBitmap(pic, src, dst, bmpPaint)
+            }
             c.restore()
             stroke(glow, 1.4f * u, if (speaking) (170 + 85 * (0.5f + 0.5f * sin(t * 8f))).toInt() else 210)
             c.drawCircle(cx, cyy, rad * sc, p)
@@ -195,6 +226,8 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
                 r.set(left, bottom - h, left + 3f * u, bottom); c.drawRoundRect(r, u, u, p)
             }
         }
-        postInvalidateOnAnimation()
+        if (!lite) postInvalidateOnAnimation()
+        else if (mode != "idle" || angry) postInvalidateDelayed(90)
+        else postInvalidateDelayed(1000)
     }
 }

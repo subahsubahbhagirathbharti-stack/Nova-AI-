@@ -52,7 +52,7 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
         })
     }
 
-    fun speak(raw: String, scope: CoroutineScope, force: Boolean = false, onStart: () -> Unit = {}, onDone: () -> Unit = {}) {
+    fun speak(raw: String, scope: CoroutineScope, force: Boolean = false, natural: Boolean = false, onStart: () -> Unit = {}, onDone: () -> Unit = {}) {
         if (!force && !prefs.speak) { onDone(); return }
         val text = clean(raw)
         if (text.isBlank()) { onDone(); return }
@@ -65,7 +65,7 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
             ((prefs.elevenKey.isNotBlank() && prefs.elevenVoiceId.isNotBlank()) ||
                 (prefs.naturalVoice && prefs.apiKey.isNotBlank() && now0 > geminiBlockedUntil) ||
                 prefs.gtts)
-        if (!netVoice || text.length <= 45) { system(text, start, finish); return }
+        if (!netVoice || text.length <= 45 || (prefs.fastVoice && !natural)) { system(text, start, finish); return }
         scope.launch {
             val chunks = splitChunks(text)
             var pending: Deferred<Audio?> = async { genAudio(chunks[0]) }

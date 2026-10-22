@@ -76,6 +76,7 @@ class ListenService : Service() {
         db = ChatDb(this)
         speaker = Speaker(this, prefs)
         speaker.onInfo = { m -> android.widget.Toast.makeText(applicationContext, m, android.widget.Toast.LENGTH_LONG).show() }
+        CommandRouter.followUp = { m -> db.add(Msg("model", m)); speaker.speak(m, scope, true) }
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wake = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "nova:listen").apply { acquire(2 * 60 * 60 * 1000L) }
         busy = true
@@ -268,6 +269,7 @@ class ListenService : Service() {
 
     override fun onDestroy() {
         running = false
+        CommandRouter.followUp = null
         main.removeCallbacksAndMessages(null)
         recognizer?.destroy()
         if (::speaker.isInitialized) speaker.shutdown()

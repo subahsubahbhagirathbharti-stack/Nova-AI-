@@ -45,6 +45,35 @@ object CommandRouter {
     private val ui = android.os.Handler(android.os.Looper.getMainLooper())
     private var lastSong = ""
 
+    /** Set by the screen / listening service so Nova can report the real result of slow actions. */
+    @Volatile var followUp: ((String) -> Unit)? = null
+
+    /** Presses WhatsApp's Send button (several tries, then checks it really went) and reports the true result. */
+    private fun sendWhatsAppLater(ctx: Context, who: String) {
+        val sendId = "com.whatsapp:id/send"
+        var finished = false
+        fun say(m: String) {
+            if (finished) return
+            finished = true
+            val out = followUp
+            if (out != null) out(m) else android.widget.Toast.makeText(ctx.applicationContext, m, android.widget.Toast.LENGTH_LONG).show()
+        }
+        val delays = listOf(3000L, 5000L, 7500L, 10000L, 14000L)
+        for (d in delays) ui.postDelayed({
+            if (finished) return@postDelayed
+            val svc = NovaAccessibilityService.instance
+            if (svc == null) { say("Screen control बंद है, $who का मैसेज लिखा पड़ा है, Send तुम दबा दो।"); return@postDelayed }
+            val inWa = svc.activePackage()?.startsWith("com.whatsapp") == true
+            if (inWa && (svc.clickId(sendId) || svc.clickText("Send"))) {
+                ui.postDelayed({
+                    val s2 = NovaAccessibilityService.instance
+                    if (!finished && s2 != null && !s2.hasId(sendId)) say("भेज दिया ✅ $who को मैसेज चला गया।")
+                }, 2000L)
+            }
+        }, d)
+        ui.postDelayed({ say("Send नहीं दब पाया 😕 मैसेज $who के चैट में लिखा पड़ा है, तुम Send दबा दो।") }, 18000L)
+    }
+
     /** Tries to click one of [texts] at each delay until it works. */
     private fun clickLater(texts: List<String>, delays: List<Long>, skipIfScreenHas: List<String> = emptyList()) {
         var done = false
@@ -128,8 +157,8 @@ object CommandRouter {
         if (NovaAccessibilityService.instance == null) {
             return "$who के लिए मैसेज तैयार कर दिया 💌 Send दबा दो (Screen control चालू हो तो मैं खुद भेज दूँगी)।"
         }
-        clickLater(listOf("Send", "भेजें"), listOf(4500L, 7000L))
-        return "ठीक है $name, $who को भेज रही हूँ: \"$text\" 💌"
+        sendWhatsAppLater(ctx, who)
+        return "WhatsApp खोलकर $who के लिए \"$text\" लिख दिया 💌 अब Send दबा रही हूँ। मैसेज गया या नहीं, ये मैं कुछ सेकंड में पक्का बताऊँगी।"
     }
 
     private val moods = listOf(

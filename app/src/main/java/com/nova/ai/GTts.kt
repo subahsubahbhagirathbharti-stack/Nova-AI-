@@ -10,11 +10,28 @@ import java.net.URLEncoder
 object GTts {
     @Volatile var lastError: String = ""
 
+    private fun langFor(t: String): String {
+        for (ch in t) {
+            when (ch) {
+                in '\u0900'..'\u097F' -> return "hi"
+                in '\u0980'..'\u09FF' -> return "bn"
+                in '\u0A00'..'\u0A7F' -> return "pa"
+                in '\u0A80'..'\u0AFF' -> return "gu"
+                in '\u0B80'..'\u0BFF' -> return "ta"
+                in '\u0C00'..'\u0C7F' -> return "te"
+                in '\u0C80'..'\u0CFF' -> return "kn"
+                in '\u0D00'..'\u0D7F' -> return "ml"
+                in '\u0600'..'\u06FF' -> return "ur"
+            }
+        }
+        return "en"
+    }
+
     suspend fun tts(text: String): ByteArray? = withContext(Dispatchers.IO) {
         try {
             val t = text.trim().take(190)
             if (t.isEmpty()) return@withContext null
-            val lang = if (t.any { it in '\u0900'..'\u097F' }) "hi" else "en"
+            val lang = langFor(t)
             val url = "https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=$lang&q=" + URLEncoder.encode(t, "UTF-8")
             val c = URL(url).openConnection() as HttpURLConnection
             try {

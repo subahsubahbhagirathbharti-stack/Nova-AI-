@@ -254,6 +254,7 @@ class MainActivity : AppCompatActivity() {
         updateGreeting()
         reload()
         ListenService.onState = { applyState(it) }
+        if (!ListenService.running) CommandRouter.followUp = { m -> reply(m) }
         ListenService.onChange = { reload() }
         applyState(if (ListenService.running) ListenService.lastState else "idle")
         updateBattery()

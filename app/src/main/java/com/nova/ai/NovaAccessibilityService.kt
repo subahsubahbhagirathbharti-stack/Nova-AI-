@@ -58,6 +58,19 @@ class NovaAccessibilityService : AccessibilityService() {
         h.removeCallbacks(autoRun)
     }
 
+    fun activePackage(): String? = rootInActiveWindow?.packageName?.toString()
+
+    fun hasId(id: String): Boolean =
+        rootInActiveWindow?.findAccessibilityNodeInfosByViewId(id)?.isNotEmpty() == true
+
+    /** Clicks the element with this view id (e.g. WhatsApp's "com.whatsapp:id/send"). */
+    fun clickId(id: String): Boolean {
+        val n = rootInActiveWindow?.findAccessibilityNodeInfosByViewId(id)?.firstOrNull() ?: return false
+        var x: AccessibilityNodeInfo? = n
+        while (x != null && !x.isClickable) x = x.parent
+        return (x ?: n).performAction(AccessibilityNodeInfo.ACTION_CLICK)
+    }
+
     /** Tap at a fraction of the screen, e.g. tapAt(0.5f, 0.3f) = middle, 30% from the top. */
     fun tapAt(fx: Float, fy: Float): Boolean {
         val dm = resources.displayMetrics

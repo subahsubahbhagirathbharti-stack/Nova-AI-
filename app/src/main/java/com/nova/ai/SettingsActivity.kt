@@ -101,23 +101,78 @@ class SettingsActivity : AppCompatActivity() {
                 val e = engine
                 if (st != android.speech.tts.TextToSpeech.SUCCESS || e == null) {
                     report("Phone voice", "इस फोन में Text-to-speech engine तैयार नहीं है।")
+                    e?.shutdown()
                 } else {
-                    val voices = (e.voices ?: emptySet()).filter { it.locale.language == "hi" || it.locale.language == "en" }
-                        .sortedWith(compareBy({ it.locale.language != "hi" }, { it.name }))
+                    val voices = (e.voices ?: emptySet())
+                        .sortedWith(compareBy({ it.locale.language != "hi" }, { it.locale.language }, { it.name }))
                     if (voices.isEmpty()) {
-                        report("Phone voice", "कोई Hindi/English voice नहीं मिली। Settings > Text-to-speech में Google engine और Hindi voice data install करो।")
+                        report("Phone voice", "कोई voice नहीं मिली। नीचे वाले बटन से और आवाज़ें install करो।")
+                        e.shutdown()
                     } else {
-                        val labels = voices.map { it.name + if (it.isNetworkConnectionRequired) " (online)" else "" }.toTypedArray()
-                        android.app.AlertDialog.Builder(this).setTitle("Phone voice चुनो")
-                            .setItems(labels) { _, idx ->
-                                p.sysVoice = voices[idx].name
-                                Toast.makeText(this, "चुनी: " + voices[idx].name, Toast.LENGTH_LONG).show()
+                        val labels = voices.map { v ->
+                            v.locale.displayName + " · " + v.name + (if (v.isNetworkConnectionRequired) " (online)" else "")
+                        }.toTypedArray()
+                        var chosen = -1
+                        android.app.AlertDialog.Builder(this).setTitle("आवाज़ चुनो: दबाकर सुनो, फिर Save")
+                            .setSingleChoiceItems(labels, -1) { _, idx ->
+                                chosen = idx
+                                val v = voices[idx]
+                                e.voice = v
+                                val sample = when (v.locale.language) {
+                                    "hi" -> "नमस्ते, मैं नोवा हूँ। तुम कैसे हो?"
+                                    "en" -> "Hello, I am Nova. How are you?"
+                                    else -> "Nova"
+                                }
+                                e.speak(sample, android.speech.tts.TextToSpeech.QUEUE_FLUSH, null, "preview")
                             }
-                            .setNeutralButton("Default", { _, _ -> p.sysVoice = "" })
+                            .setPositiveButton("Save") { _, _ ->
+                                if (chosen >= 0) {
+                                    p.sysVoice = voices[chosen].name
+                                    Toast.makeText(this, "चुनी: " + voices[chosen].name, Toast.LENGTH_LONG).show()
+                                }
+                            }
+                            .setNeutralButton("Default") { _, _ -> p.sysVoice = "" }
+                            .setNegativeButton("Close", null)
+                            .setOnDismissListener { e.shutdown() }
                             .show()
                     }
                 }
-                e?.shutdown()
+            }
+        }
+        findViewById<Button>(R.id.btnPickGemini).setOnClickListener {
+            val names = arrayOf("Zephyr", "Puck", "Charon", "Kore", "Fenrir", "Leda", "Orus", "Aoede", "Callirrhoe", "Autonoe",
+                "Enceladus", "Iapetus", "Umbriel", "Algieba", "Despina", "Erinome", "Algenib", "Rasalgethi", "Laomedeia",
+                "Achernar", "Alnilam", "Schedar", "Gacrux", "Pulcherrima", "Achird", "Zubenelgenubi", "Vindemiatrix",
+                "Sadachbia", "Sadaltager", "Sulafat")
+            var chosen = -1
+            android.app.AlertDialog.Builder(this).setTitle("Gemini आवाज़ चुनो")
+                .setSingleChoiceItems(names, -1) { _, idx -> chosen = idx }
+                .setPositiveButton("Save") { _, _ ->
+                    if (chosen >= 0) {
+                        vname.setText(names[chosen])
+                        p.voiceName = names[chosen]
+                        Toast.makeText(this, names[chosen] + " चुनी। सुनने के लिए Test Gemini voice दबाओ।", Toast.LENGTH_LONG).show()
+                    }
+                }
+                .setNegativeButton("Close", null)
+                .show()
+        }
+        findViewById<Button>(R.id.btnPickLang).setOnClickListener {
+            val codes = arrayOf("hi-IN", "en-IN", "bn-IN", "ta-IN", "te-IN", "mr-IN", "gu-IN", "kn-IN", "ml-IN", "pa-IN", "ur-IN", "en-US")
+            val labels = arrayOf("हिंदी", "English (India)", "বাংলা", "தமிழ்", "తెలుగు", "मराठी", "ગુજરાતી", "ಕನ್ನಡ", "മലയാളം", "ਪੰਜਾਬੀ", "اردو", "English (US)")
+            android.app.AlertDialog.Builder(this).setTitle("सुनने की भाषा")
+                .setItems(labels) { _, i ->
+                    lang.setText(codes[i])
+                    p.listenLang = codes[i]
+                    Toast.makeText(this, "भाषा: " + labels[i], Toast.LENGTH_SHORT).show()
+                }
+                .show()
+        }
+        findViewById<Button>(R.id.btnTtsSettings).setOnClickListener {
+            try {
+                startActivity(Intent("com.android.settings.TTS_SETTINGS"))
+            } catch (e: Exception) {
+                startActivity(Intent(Settings.ACTION_SETTINGS))
             }
         }
         fun openScreen(i: Intent) {

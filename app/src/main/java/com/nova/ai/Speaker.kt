@@ -131,18 +131,37 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
         return if (out.isEmpty()) listOf(t) else out
     }
 
+    private fun localeFor(text: String): Locale {
+        for (ch in text) {
+            when (ch) {
+                in '\u0900'..'\u097F' -> return Locale("hi", "IN")
+                in '\u0980'..'\u09FF' -> return Locale("bn", "IN")
+                in '\u0A00'..'\u0A7F' -> return Locale("pa", "IN")
+                in '\u0A80'..'\u0AFF' -> return Locale("gu", "IN")
+                in '\u0B80'..'\u0BFF' -> return Locale("ta", "IN")
+                in '\u0C00'..'\u0C7F' -> return Locale("te", "IN")
+                in '\u0C80'..'\u0CFF' -> return Locale("kn", "IN")
+                in '\u0D00'..'\u0D7F' -> return Locale("ml", "IN")
+                in '\u0600'..'\u06FF' -> return Locale("ur", "IN")
+            }
+        }
+        return Locale.getDefault()
+    }
+
     private fun system(text: String, start: () -> Unit, finish: () -> Unit) {
         if (!ready) { info("Phone voice engine not ready. Install/enable Google Text-to-speech in phone Settings."); finish(); return }
-        val hindi = text.any { it in '\u0900'..'\u097F' }
-        val lr = tts.setLanguage(if (hindi) Locale("hi", "IN") else Locale.getDefault())
+        val loc = localeFor(text)
+        val lr = tts.setLanguage(loc)
         if (lr == TextToSpeech.LANG_MISSING_DATA || lr == TextToSpeech.LANG_NOT_SUPPORTED) {
-            info("Hindi voice data missing. Settings > Text-to-speech > install Hindi voice data.")
+            info("${loc.displayLanguage} voice data missing. Settings > Text-to-speech > install voice data.")
             tts.setLanguage(Locale.getDefault())
         }
         tts.setPitch(prefs.pitch)
         tts.setSpeechRate(prefs.rate)
         if (prefs.sysVoice.isNotBlank()) {
-            try { tts.voices?.firstOrNull { it.name == prefs.sysVoice }?.let { tts.voice = it } } catch (e: Exception) { }
+            try {
+                tts.voices?.firstOrNull { it.name == prefs.sysVoice }?.let { if (it.locale.language == loc.language) tts.voice = it }
+            } catch (e: Exception) { }
         }
         pendingFinish = finish
         start()

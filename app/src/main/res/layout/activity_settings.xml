@@ -93,6 +93,12 @@
             android:layout_height="wrap_content" android:text="Test Gemini voice (natural)" />
         <Button android:id="@+id/btnPickVoice" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:text="Choose phone voice (कम robotic वाली चुनो)" />
+        <Button android:id="@+id/btnPickGemini" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="Gemini की 30 आवाज़ों में से चुनो" />
+        <Button android:id="@+id/btnPickLang" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="सुनने की भाषा चुनो (हिंदी, बंगाली, तमिल, तेलुगू...)" />
+        <Button android:id="@+id/btnTtsSettings" android:layout_width="match_parent"
+            android:layout_height="wrap_content" android:text="और हिंदी आवाज़ें install करो (फ़ोन की TTS settings)" />
 
         <Button android:id="@+id/btnA11y" android:layout_width="match_parent"
             android:layout_height="wrap_content" android:layout_marginTop="16dp"

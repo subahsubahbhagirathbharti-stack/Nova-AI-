@@ -46,10 +46,117 @@ class MainActivity : AppCompatActivity() {
     }
 
     private var camQuestion = ""
+    private val attachments = ArrayList<ByteArray>()
+    private var camToAttach = false
+    private lateinit var attachBar: android.view.View
+    private lateinit var attachThumb: android.widget.ImageView
+    private lateinit var attachLabel: TextView
+
+    private val pickImages = registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+        if (uris.isNotEmpty()) lifecycleScope.launch {
+            val list = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { uris.take(4).mapNotNull { decodeUri(it) } }
+            if (list.isEmpty()) Toast.makeText(this@MainActivity, "फोटो नहीं खुल पाई", Toast.LENGTH_SHORT).show()
+            else setAttachments(list, "🖼 " + list.size + " फोटो")
+        }
+    }
+    private val pickVideo = registerForActivityResult(ActivityResultContracts.GetContent()) { uri ->
+        if (uri != null) lifecycleScope.launch {
+            Toast.makeText(this@MainActivity, "वीडियो से फ्रेम निकाल रही हूँ…", Toast.LENGTH_SHORT).show()
+            val frames = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { videoFrames(uri) }
+            if (frames.isEmpty()) Toast.makeText(this@MainActivity, "वीडियो नहीं खुल पाया", Toast.LENGTH_SHORT).show()
+            else setAttachments(frames, "🎬 वीडियो (" + frames.size + " फ्रेम)")
+        }
+    }
+
+    private fun decodeUri(u: android.net.Uri): ByteArray? {
+        try {
+            val o = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            contentResolver.openInputStream(u)?.use { android.graphics.BitmapFactory.decodeStream(it, null, o) }
+            var sample = 1
+            while (o.outWidth / sample > 1400 || o.outHeight / sample > 1400) sample *= 2
+            val bmp = contentResolver.openInputStream(u)?.use {
+                android.graphics.BitmapFactory.decodeStream(it, null, android.graphics.BitmapFactory.Options().apply { inSampleSize = sample })
+            } ?: return null
+            val out = java.io.ByteArrayOutputStream()
+            bmp.compress(android.graphics.Bitmap.CompressFormat.JPEG, 80, out)
+            bmp.recycle()
+            return out.toByteArray()
+        } catch (e: Throwable) {
+            return null
+        }
+    }
+
+    /** Pulls 5 evenly spaced pictures out of a video (no audio), small enough for a low-RAM phone. */
+    private fun videoFrames(u: android.net.Uri): List<ByteArray> {
+        val r = android.media.MediaMetadataRetriever()
+        val out = ArrayList<ByteArray>()
+        try {
+            r.setDataSource(this, u)
+            val durMs = r.extractMetadata(android.media.MediaMetadataRetriever.METADATA_KEY_DURATION)?.toLongOrNull() ?: 0L
+            val n = 5
+            for (i in 0 until n) {
+                val tMs = if (durMs > 0) durMs * (2 * i + 1) / (2 * n) else 0L
+                val f = r.getFrameAtTime(tMs * 1000L, android.media.MediaMetadataRetriever.OPTION_CLOSEST_SYNC) ?: continue
+                val sc = minOf(1f, 768f / maxOf(f.width, f.height))
+                val sm = if (sc < 1f) android.graphics.Bitmap.createScaledBitmap(f, (f.width * sc).toInt(), (f.height * sc).toInt(), true) else f
+                val bos = java.io.ByteArrayOutputStream()
+                sm.compress(android.graphics.Bitmap.CompressFormat.JPEG, 75, bos)
+                out.add(bos.toByteArray())
+                if (sm !== f) sm.recycle()
+                f.recycle()
+            }
+        } catch (e: Throwable) {
+        } finally {
+            try { r.release() } catch (e: Throwable) { }
+        }
+        return out
+    }
+
+    private fun setAttachments(list: List<ByteArray>, label: String) {
+        attachments.clear()
+        attachments.addAll(list)
+        val opt = android.graphics.BitmapFactory.Options().apply { inSampleSize = 4 }
+        attachThumb.setImageBitmap(android.graphics.BitmapFactory.decodeByteArray(list[0], 0, list[0].size, opt))
+        attachLabel.text = label + " — नीचे सवाल लिखो और SEND दबाओ"
+        attachBar.visibility = android.view.View.VISIBLE
+    }
+
+    private fun clearAttachments() {
+        attachments.clear()
+        attachThumb.setImageDrawable(null)
+        attachBar.visibility = android.view.View.GONE
+    }
+
+    private fun sendWithAttachments(q: String) {
+        speaker.stop()
+        val imgs = ArrayList(attachments)
+        val label = attachLabel.text.toString().substringBefore(" —")
+        val isVideo = label.startsWith("🎬")
+        addMsg(Msg("user", "📎 " + label + "\n" + q))
+        clearAttachments()
+        applyState("thinking")
+        lifecycleScope.launch {
+            val question = if (isVideo) "ये एक वीडियो से बराबर दूरी पर लिए गए फ्रेम हैं (आवाज़ नहीं है)। " + q else q
+            val r = GeminiClient.visionMulti(prefs, imgs, question)
+            applyState(if (ListenService.running) ListenService.lastState else "idle")
+            reply(r)
+        }
+    }
+
     private val askContacts = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private fun shotFile() = java.io.File(java.io.File(cacheDir, "images").apply { mkdirs() }, "nova_shot.jpg")
     private val takePic = registerForActivityResult(ActivityResultContracts.TakePicture()) { ok ->
-        if (ok) analyzePhoto() else Toast.makeText(this, "फोटो नहीं ली गई", Toast.LENGTH_SHORT).show()
+        if (!ok) {
+            camToAttach = false
+            Toast.makeText(this, "फोटो नहीं ली गई", Toast.LENGTH_SHORT).show()
+        } else if (camToAttach) {
+            camToAttach = false
+            lifecycleScope.launch {
+                val bytes = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { loadScaledJpeg(shotFile()) }
+                if (bytes == null) Toast.makeText(this@MainActivity, "फोटो नहीं मिली", Toast.LENGTH_SHORT).show()
+                else setAttachments(listOf(bytes), "📷 फोटो")
+            }
+        } else analyzePhoto()
     }
 
     private fun loadScaledJpeg(f: java.io.File): ByteArray? {
@@ -100,6 +207,28 @@ class MainActivity : AppCompatActivity() {
         greetName = findViewById(R.id.greetName)
         lastReply = findViewById(R.id.lastReply)
         tapLabel = findViewById(R.id.tapLabel)
+        attachBar = findViewById(R.id.attachBar)
+        attachThumb = findViewById(R.id.attachThumb)
+        attachLabel = findViewById(R.id.attachLabel)
+        findViewById<TextView>(R.id.attachClear).setOnClickListener { clearAttachments() }
+        findViewById<TextView>(R.id.btnPlus).setOnClickListener {
+            val items = arrayOf("📷 Camera से फोटो", "🖼 Gallery से फोटो (4 तक)", "🎬 वीडियो चुनो")
+            android.app.AlertDialog.Builder(this).setTitle("जोड़ो").setItems(items) { _, i ->
+                when (i) {
+                    0 -> {
+                        camToAttach = true
+                        try {
+                            takePic.launch(androidx.core.content.FileProvider.getUriForFile(this, "$packageName.files", shotFile()))
+                        } catch (e: Exception) {
+                            camToAttach = false
+                            Toast.makeText(this, "Camera नहीं खुल पाया", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                    1 -> pickImages.launch("image/*")
+                    else -> pickVideo.launch("video/*")
+                }
+            }.show()
+        }
         findViewById<TextView>(R.id.navHome).setOnClickListener { showPage(true) }
         findViewById<TextView>(R.id.navChat).setOnClickListener { showPage(false) }
         tapLabel.setOnClickListener { speaker.stop(); toggleListening() }
@@ -119,9 +248,13 @@ class MainActivity : AppCompatActivity() {
 
         findViewById<TextView>(R.id.btnSend).setOnClickListener {
             val t = input.text.toString().trim()
-            if (t.isNotEmpty()) { input.text.clear(); submit(t) }
+            if (attachments.isNotEmpty()) {
+                input.text.clear()
+                sendWithAttachments(if (t.isEmpty()) "इसमें क्या है? हिंदी में बताओ।" else t)
+            } else if (t.isNotEmpty()) { input.text.clear(); submit(t) }
         }
         findViewById<TextView>(R.id.btnCam).setOnClickListener {
+            camToAttach = false
             val q = input.text.toString().trim()
             camQuestion = if (q.isEmpty()) "इसमें क्या है? हिंदी में बताओ।" else q
             input.text.clear()

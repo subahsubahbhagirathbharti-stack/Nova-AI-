@@ -98,14 +98,18 @@ Keep the warm tone to one short line at most."""
     }
 
     /** Looks at a photo and answers a question about it (Gemini vision). */
-    suspend fun vision(prefs: Prefs, jpeg: ByteArray, question: String): String = withContext(Dispatchers.IO) {
+    suspend fun vision(prefs: Prefs, jpeg: ByteArray, question: String): String = visionMulti(prefs, listOf(jpeg), question)
+
+    suspend fun visionMulti(prefs: Prefs, images: List<ByteArray>, question: String): String = withContext(Dispatchers.IO) {
         if (prefs.apiKey.isBlank()) return@withContext "पहले Settings में Gemini key डालो।"
         try {
-            val b64 = Base64.encodeToString(jpeg, Base64.NO_WRAP)
             val sys = "तुम Nova हो, एक प्यारी और समझदार लड़की। फोटो देखकर हिंदी में छोटा और साफ़ जवाब दो (स्त्रीलिंग क्रियाएँ), कोई bullet list नहीं।"
             val parts = JSONArray()
-                .put(JSONObject().put("inline_data", JSONObject().put("mime_type", "image/jpeg").put("data", b64)))
-                .put(JSONObject().put("text", question))
+            for (img in images) {
+                parts.put(JSONObject().put("inline_data", JSONObject().put("mime_type", "image/jpeg")
+                    .put("data", Base64.encodeToString(img, Base64.NO_WRAP))))
+            }
+            parts.put(JSONObject().put("text", question))
             val body = JSONObject()
                 .put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", sys))))
                 .put("contents", JSONArray().put(JSONObject().put("role", "user").put("parts", parts)))

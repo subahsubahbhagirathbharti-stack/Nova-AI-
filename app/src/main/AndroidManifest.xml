@@ -21,6 +21,7 @@
         <package android:name="com.google.android.youtube" />
         <package android:name="com.android.vending" />
         <package android:name="com.whatsapp" />
+        <package android:name="com.google.android.tts" />
         <intent><action android:name="android.media.action.IMAGE_CAPTURE" /></intent>
     </queries>
 

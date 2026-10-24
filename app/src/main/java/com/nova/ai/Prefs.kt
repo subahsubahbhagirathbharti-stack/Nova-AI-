@@ -19,6 +19,7 @@ class Prefs(ctx: Context) {
     var fastVoice: Boolean get() = sp.getBoolean("fastvoice", true); set(v) = sp.edit().putBoolean("fastvoice", v).apply()
     var liteUi: Boolean get() = sp.getBoolean("liteui", true); set(v) = sp.edit().putBoolean("liteui", v).apply()
     var autoStart: Boolean get() = sp.getBoolean("autostart", false); set(v) = sp.edit().putBoolean("autostart", v).apply()
+    var turbo: Boolean get() = sp.getBoolean("turbo", true); set(v) = sp.edit().putBoolean("turbo", v).apply()
     var wakeMode: Boolean get() = sp.getBoolean("wakeword", true); set(v) = sp.edit().putBoolean("wakeword", v).apply()
     var naturalVoice: Boolean get() = sp.getBoolean("nat", true); set(v) = sp.edit().putBoolean("nat", v).apply()
     var voiceName: String get() = sp.getString("vname", "Kore") ?: "Kore"; set(v) = sp.edit().putString("vname", v).apply()

@@ -40,6 +40,7 @@ class SettingsActivity : AppCompatActivity() {
         val eVoice = findViewById<EditText>(R.id.elevenVoiceId).apply { setText(p.elevenVoiceId) }
         val eModel = findViewById<EditText>(R.id.elevenModel).apply { setText(p.elevenModel) }
         val wakeSw = findViewById<SwitchCompat>(R.id.wakeSwitch).apply { isChecked = p.wakeMode }
+        val turboSw = findViewById<SwitchCompat>(R.id.turboSwitch).apply { isChecked = p.turbo }
         val fastSw = findViewById<SwitchCompat>(R.id.fastSwitch).apply { isChecked = p.fastVoice }
         val liteSw = findViewById<SwitchCompat>(R.id.liteSwitch).apply { isChecked = p.liteUi }
         val autoSw = findViewById<SwitchCompat>(R.id.autoSwitch).apply { isChecked = p.autoStart }
@@ -238,6 +239,7 @@ class SettingsActivity : AppCompatActivity() {
             p.elevenVoiceId = eVoice.text.toString().trim()
             p.elevenModel = eModel.text.toString().trim().ifEmpty { "eleven_multilingual_v2" }
             p.wakeMode = wakeSw.isChecked
+            p.turbo = turboSw.isChecked
             p.fastVoice = fastSw.isChecked
             p.liteUi = liteSw.isChecked
             p.autoStart = autoSw.isChecked

@@ -34,23 +34,36 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
     private class Audio(val pcm: ByteArray?, val mp3: ByteArray?)
 
     private var ready = false
+    private var initDone = false
+    private var progressSet = false
+    private var queued: (() -> Unit)? = null
     private val handler = Handler(Looper.getMainLooper())
     private var pendingFinish: (() -> Unit)? = null
-    private val tts = TextToSpeech(ctx) { ready = (it == TextToSpeech.SUCCESS) }
+    private val progress = object : UtteranceProgressListener() {
+        override fun onStart(id: String?) {}
+        override fun onDone(id: String?) { handler.post { pendingFinish?.invoke() } }
+        override fun onError(id: String?) { handler.post { pendingFinish?.invoke() } }
+    }
+    private val ttsListener = TextToSpeech.OnInitListener { st ->
+        ready = (st == TextToSpeech.SUCCESS)
+        initDone = true
+        handler.post {
+            val q = queued
+            queued = null
+            q?.invoke()
+        }
+    }
+    private val tts: TextToSpeech = run {
+        val google = "com.google.android.tts"
+        val has = try { ctx.packageManager.getPackageInfo(google, 0); true } catch (e: Exception) { false }
+        if (has) TextToSpeech(ctx, ttsListener, google) else TextToSpeech(ctx, ttsListener)
+    }
     private var track: AudioTrack? = null
     private var player: MediaPlayer? = null
     private var mp3Resume: (() -> Unit)? = null
     private var gen = 0
     var onInfo: ((String) -> Unit)? = null
     private fun info(m: String) { handler.post { onInfo?.invoke(m) } }
-
-    init {
-        tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(id: String?) {}
-            override fun onDone(id: String?) { handler.post { pendingFinish?.invoke() } }
-            override fun onError(id: String?) { handler.post { pendingFinish?.invoke() } }
-        })
-    }
 
     fun speak(raw: String, scope: CoroutineScope, force: Boolean = false, natural: Boolean = false, onStart: () -> Unit = {}, onDone: () -> Unit = {}) {
         if (!force && !prefs.speak) { onDone(); return }
@@ -65,7 +78,13 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
             ((prefs.elevenKey.isNotBlank() && prefs.elevenVoiceId.isNotBlank()) ||
                 (prefs.naturalVoice && prefs.apiKey.isNotBlank() && now0 > geminiBlockedUntil) ||
                 prefs.gtts)
-        if (!netVoice || text.length <= 45 || (prefs.fastVoice && !natural)) { system(text, start, finish); return }
+        val engineDead = initDone && !ready
+        if (!engineDead && (!netVoice || text.length <= 45 || (prefs.fastVoice && !natural))) { system(text, start, finish); return }
+        if (!netVoice) {
+            info("Phone voice engine नहीं चल रहा और Google आवाज़ भी बंद है। Settings में gTTS switch चालू करो।")
+            finish()
+            return
+        }
         scope.launch {
             val chunks = splitChunks(text)
             var pending: Deferred<Audio?> = async { genAudio(chunks[0]) }
@@ -149,7 +168,20 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
     }
 
     private fun system(text: String, start: () -> Unit, finish: () -> Unit) {
-        if (!ready) { info("Phone voice engine not ready. Install/enable Google Text-to-speech in phone Settings."); finish(); return }
+        if (!initDone) {
+            // the engine is still starting up: wait for it instead of staying silent
+            queued = { system(text, start, finish) }
+            handler.postDelayed({
+                if (queued != null) {
+                    queued = null
+                    info("Phone voice engine शुरू नहीं हुआ। फ़ोन Settings में Google Text-to-speech चालू करो।")
+                    finish()
+                }
+            }, 4000L)
+            return
+        }
+        if (!ready) { info("Phone voice engine चालू नहीं है। फ़ोन Settings > Text-to-speech में Google engine चुनो।"); finish(); return }
+        if (!progressSet) { tts.setOnUtteranceProgressListener(progress); progressSet = true }
         val loc = localeFor(text)
         val lr = tts.setLanguage(loc)
         if (lr == TextToSpeech.LANG_MISSING_DATA || lr == TextToSpeech.LANG_NOT_SUPPORTED) {
@@ -220,6 +252,7 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
 
     fun stop() {
         gen++
+        queued = null
         handler.removeCallbacksAndMessages(null)
         pendingFinish = null
         tts.stop()

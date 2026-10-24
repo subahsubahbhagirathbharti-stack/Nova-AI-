@@ -95,6 +95,12 @@ class NovaAccessibilityService : AccessibilityService() {
         }
     }
 
+    /** The phone's own screenshot (saved to the gallery), Android 9+. */
+    fun systemScreenshot(): Boolean =
+        if (android.os.Build.VERSION.SDK_INT >= 28) performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT) else false
+
+    fun powerDialog(): Boolean = performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
+
     fun activePackage(): String? = rootInActiveWindow?.packageName?.toString()
 
     fun hasId(id: String): Boolean =
@@ -139,6 +145,13 @@ class NovaAccessibilityService : AccessibilityService() {
     /** Turns the screen off and locks the phone (Android 9+). */
     fun lockScreen(): Boolean =
         if (android.os.Build.VERSION.SDK_INT >= 28) performGlobalAction(GLOBAL_ACTION_LOCK_SCREEN) else false
+
+    /** Takes a normal screenshot that is saved in the gallery (Android 9+). */
+    fun screenshotToGallery(): Boolean =
+        if (android.os.Build.VERSION.SDK_INT >= 28) performGlobalAction(GLOBAL_ACTION_TAKE_SCREENSHOT) else false
+
+    /** Opens the power menu. Android does not let apps switch the phone off by themselves. */
+    fun powerMenu(): Boolean = performGlobalAction(GLOBAL_ACTION_POWER_DIALOG)
 
     fun clickText(text: String): Boolean {
         val root = rootInActiveWindow ?: return false

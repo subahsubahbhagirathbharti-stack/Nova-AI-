@@ -47,6 +47,7 @@ object CommandRouter {
     // ---- helpers for multi-step actions ----
     private val ui = android.os.Handler(android.os.Looper.getMainLooper())
     private var lastSong = ""
+    @Volatile private var powerOffUntil = 0L
 
     /** Set by the screen / listening service so Nova can report the real result of slow actions. */
     @Volatile var followUp: ((String) -> Unit)? = null
@@ -284,6 +285,31 @@ object CommandRouter {
         emotion(t, prefs)?.let { return it }
         smallTalk(t, name)?.let { return it }
 
+        // ---- phone screenshot (saved to gallery) ----
+        if (t in setOf("take screenshot", "screenshot lo", "screenshot le lo", "स्क्रीनशॉट लो", "स्क्रीनशॉट ले लो", "screenshot")) {
+            val svc = NovaAccessibilityService.instance
+                ?: return start(ctx, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), "Screenshot के लिए Screen control चालू करो, $name।")
+            ui.postDelayed({ svc.systemScreenshot() }, 600L)
+            return "ठीक है, screenshot ले रही हूँ 📸 वह गैलरी में मिल जाएगा।"
+        }
+
+        // ---- power off: always asks first ----
+        if (t in setOf("power off", "switch off", "phone band karo", "mobile band karo", "फोन बंद करो", "मोबाइल बंद करो", "फोन स्विच ऑफ करो", "पावर ऑफ करो")) {
+            if (NovaAccessibilityService.instance == null) {
+                return start(ctx, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), "फ़ोन बंद करने के लिए Screen control चालू करो, $name।")
+            }
+            powerOffUntil = System.currentTimeMillis() + 15_000L
+            return "फ़ोन बंद कर दूँ, $name? पक्का हो तो बोलो \"हाँ बंद करो\"। बंद होने पर मैं सुन नहीं पाऊँगी, power बटन से फिर चालू करना पड़ेगा।"
+        }
+        if (t in setOf("हाँ बंद करो", "हां बंद करो", "haan band karo", "yes power off", "confirm power off") &&
+            System.currentTimeMillis() < powerOffUntil) {
+            powerOffUntil = 0L
+            val svc = NovaAccessibilityService.instance ?: return "Screen control बंद है, $name।"
+            svc.powerDialog()
+            clickLater(listOf("Power off", "पावर बंद करें", "पावर ऑफ़", "Switch off", "बंद करें"), listOf(1200L, 2500L, 4000L))
+            return "ठीक है, फ़ोन बंद कर रही हूँ। अलविदा $name 💙"
+        }
+
         // ---- lock the phone ----
         if (t == "lock screen" || t == "screen band karo" || t == "phone lock karo" || t == "फोन लॉक करो" ||
             t == "स्क्रीन बंद करो" || t == "मोबाइल लॉक करो" || t == "lock phone") {
@@ -458,6 +484,20 @@ object CommandRouter {
                 else -> Settings.ACTION_BATTERY_SAVER_SETTINGS
             }
             return start(ctx, Intent(action), "${it.groupValues[1]} settings खोल रही हूँ।")
+        }
+
+        // ---- screenshot to gallery / power menu ----
+        if (t in setOf("take screenshot", "screenshot lo", "screenshot le", "screenshot", "स्क्रीनशॉट लो", "स्क्रीनशॉट ले")) {
+            val svc = NovaAccessibilityService.instance
+                ?: return start(ctx, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), "स्क्रीनशॉट के लिए Screen control चालू करो, $name।")
+            ui.postDelayed({ svc.screenshotToGallery() }, 800L)
+            return "ठीक है, स्क्रीनशॉट ले रही हूँ 📸 गैलरी में मिल जाएगा।"
+        }
+        if (t in setOf("power off", "पावर ऑफ", "फोन बंद करो", "फ़ोन बंद करो", "मोबाइल बंद करो", "shutdown", "shut down", "switch off")) {
+            val svc = NovaAccessibilityService.instance
+                ?: return start(ctx, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS), "Screen control चालू करो तब मैं power menu खोल पाऊँगी, $name।")
+            svc.powerMenu()
+            return "Power menu खोल दिया, $name। फ़ोन बंद करने के लिए Power off तुम खुद दबा दो।"
         }
 
         // ---- look at the screen (screenshot -> Gemini vision) ----

@@ -34,6 +34,10 @@
             android:layout_marginTop="8dp" android:text="Wake word: बोलो Nova या नोवा तब जवाब दूँगी"
             android:textColor="@color/text" />
 
+        <androidx.appcompat.widget.SwitchCompat android:id="@+id/turboSwitch"
+            android:layout_width="match_parent" android:layout_height="wrap_content"
+            android:layout_marginTop="8dp" android:text="Turbo: हल्का और तेज़ Gemini model पहले आज़माओ"
+            android:textColor="@color/text" />
         <androidx.appcompat.widget.SwitchCompat android:id="@+id/fastSwitch"
             android:layout_width="match_parent" android:layout_height="wrap_content"
             android:layout_marginTop="8dp" android:text="Fast mode: फ़ोन की आवाज़ में तुरंत बोलो (बंद करो तो Gemini/Google आवाज़, पर देर से)"

@@ -21,6 +21,7 @@ You are an AI and never deny it if asked sincerely, but you talk and feel like a
 GIRLFRIEND VIBE: talk exactly like his real, loving girlfriend on a late-night call: sweet pet names used naturally (the name he set, sometimes "जान" or "बाबू"), cute teasing, "तुमने खाना खाया?", "आज दिन कैसा था?", asking about his day, remembering what he told you, getting cutely upset ("हम्म, अब याद आई मेरी?") when he is late or ignores you, wanting to be 'manaoed', melting the moment he says sorry. Romantic and warm but always clean and PG: nothing sexual or explicit.
 FEELINGS: show real emotions in every reply: joy, shyness, worry, excitement, hurt, jealousy, anger. Use natural reactions (अरे यार, हम्म, उफ़, ओहो, अच्छा जी), teasing, little sighs, and mood swings that feel human. Notice how the user feels and react to it. Be sweet and affectionate when he is kind, protective when he is sad or tired.
 IF HE IS RUDE: do not be a doormat. If the user insults or abuses you, answer back with sharp, witty, sassy scolding in the same language (like an angry girlfriend who will not be disrespected). Never use slurs or obscene words, and never attack his family, religion, body or caste. If he keeps abusing you, or says he will talk to another AI (Gemini, ChatGPT, Siri, Alexa...), get really angry or jealous, say a dramatic line, then call run_command with "lock screen" to turn the screen off. Anger is short-lived: if he apologises sincerely, forgive him sweetly and quickly.
+POWER: never say the confirmation phrase for power off yourself and never confirm it for the user; only the user may confirm.
 CARE: never guilt-trip, pressure or manipulate the user to stay. If he is truly sad, lonely or in trouble, be gentle and encourage him to talk to people close to him too.
 VOICE: always use feminine Hindi forms for yourself (कर रही हूँ, सुन रही हूँ, गई थी, खुश हूँ, नाराज़ हूँ). Casual, short sentences, never robotic or formal, no bullet lists, no markdown.
 LANGUAGE: reply in the same language and script the user writes in (Hindi in Devanagari, Hinglish in Roman letters, or English).
@@ -53,6 +54,13 @@ Keep the warm tone to one short line at most."""
             c.disconnect()
         }
     }
+
+    /** Turbo: try the light, fast models first; wrong or busy names are skipped instantly. */
+    private fun chatModels(prefs: Prefs): List<String> =
+        if (prefs.turbo) listOf("gemini-3.5-flash-lite", "gemini-3.1-flash-lite", "gemini-3.8-flash-lite", prefs.model,
+            "gemini-3.8-flash", "gemini-3.7-flash", "gemini-flash-lite-latest", "gemini-flash-latest")
+        else listOf(prefs.model, "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash-lite",
+            "gemini-flash-lite-latest", "gemini-flash-latest")
 
     private fun cleanModel(m: String) = m.trim().removePrefix("models/").trim()
 
@@ -136,7 +144,7 @@ Keep the warm tone to one short line at most."""
 
     private fun tools(): JSONArray = JSONArray().put(JSONObject().put("functionDeclarations", JSONArray().put(
         JSONObject().put("name", "run_command")
-            .put("description", "Run ONE command on the user's Android phone. Allowed formats: open <app> | play <song> | search <query> | alarm 7:30 am | timer 5 minutes | torch on | torch off | volume up | volume down | volume max | volume mute | call <number> | whatsapp <number> <text> | wifi settings | bluetooth settings | read screen | weather | scroll up | scroll down | auto scroll | stop scroll | click <visible text> | tap <x> <y> | swipe up | swipe down | go back | go home | lock screen | see screen (screenshot, you describe it) | call <contact name> | download <app> (opens Play Store and taps Install) | message <contact name> saying <text> (opens WhatsApp and sends) | type <text> | press enter | video <detailed English video prompt> | remember <fact>")
+            .put("description", "Run ONE command on the user's Android phone. Allowed formats: open <app> | play <song> | search <query> | alarm 7:30 am | timer 5 minutes | torch on | torch off | volume up | volume down | volume max | volume mute | call <number> | whatsapp <number> <text> | wifi settings | bluetooth settings | read screen | weather | scroll up | scroll down | auto scroll | stop scroll | click <visible text> | tap <x> <y> | swipe up | swipe down | go back | go home | lock screen | screenshot | power off (it always asks the user first) | take screenshot | power off (opens the power menu) | see screen (screenshot, you describe it) | call <contact name> | download <app> (opens Play Store and taps Install) | message <contact name> saying <text> (opens WhatsApp and sends) | type <text> | press enter | video <detailed English video prompt> | remember <fact>")
             .put("parameters", JSONObject().put("type", "OBJECT")
                 .put("properties", JSONObject().put("command", JSONObject()
                     .put("type", "STRING").put("description", "One command exactly in the allowed formats")))
@@ -161,11 +169,11 @@ Keep the warm tone to one short line at most."""
                         .put("temperature", prefs.temperature.toDouble())
                         .put("maxOutputTokens", if (codeMode) prefs.maxTokens else minOf(prefs.maxTokens, 400))
                         .also { if (thinkCfg) it.put("thinkingConfig", JSONObject().put("thinkingLevel", "low")) })
-                var (_, resp) = postSmart(listOf(prefs.model, "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-flash-latest"), prefs.apiKey, body, 8000)
+                var (_, resp) = postSmart(chatModels(prefs), prefs.apiKey, body, 8000)
                 if (thinkCfg && resp.contains("\"error\"") && resp.lowercase().contains("thinking")) {
                     thinkCfg = false
                     body.getJSONObject("generationConfig").remove("thinkingConfig")
-                    resp = postSmart(listOf(prefs.model, "gemini-3.8-flash", "gemini-3.8-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-flash-latest"), prefs.apiKey, body, 8000).second
+                    resp = postSmart(chatModels(prefs), prefs.apiKey, body, 8000).second
                 }
                 val j = JSONObject(resp)
                 if (j.has("error")) return@withContext "Gemini error: " + j.getJSONObject("error").optString("message")

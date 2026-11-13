@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent" android:layout_height="match_parent"
-    android:background="@drawable/bg_main" android:orientation="vertical" android:fitsSystemWindows="true">
+    android:id="@+id/rootMain" android:background="@drawable/bg_main" android:orientation="vertical" android:fitsSystemWindows="true">
 
     <FrameLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1">
 
@@ -12,10 +12,10 @@
                 android:gravity="center_horizontal" android:orientation="vertical" android:padding="16dp">
 
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="NOVA AI" android:textColor="@color/neon_cyan" android:textSize="16sp"
+                    android:id="@+id/brandName" android:text="NOVA AI" android:textColor="@color/neon_cyan" android:textSize="16sp"
                     android:textStyle="bold" android:letterSpacing="0.3" />
                 <TextView android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:text="PERSONAL AI · LIVE" android:textColor="@color/hint" android:textSize="10sp"
+                    android:id="@+id/brandSub" android:text="PERSONAL AI · LIVE" android:textColor="@color/hint" android:textSize="10sp"
                     android:letterSpacing="0.2" />
 
                 <TextView android:id="@+id/greeting" android:layout_width="match_parent"
@@ -54,17 +54,23 @@
                     <TextView android:id="@+id/chipToday" style="@style/Chip" android:text="Today" />
                     <TextView android:id="@+id/chipCalc" style="@style/Chip" android:text="Calc" />
                 </LinearLayout>
+                <LinearLayout android:layout_width="wrap_content" android:layout_height="wrap_content"
+                    android:layout_marginTop="8dp" android:orientation="horizontal">
+                    <TextView android:id="@+id/chipTerminal" style="@style/Chip" android:text="Terminal" />
+                    <TextView android:id="@+id/chipCode" style="@style/Chip" android:text="Code Lab" />
+                    <TextView android:id="@+id/chipTheme" style="@style/Chip" android:text="Themes" />
+                </LinearLayout>
 
                 <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp" android:background="@drawable/bg_hud"
+                    android:layout_marginTop="16dp" android:id="@+id/hudCard" android:background="@drawable/bg_hud"
                     android:gravity="center_vertical" android:orientation="horizontal" android:padding="12dp">
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
                         android:layout_weight="1" android:orientation="vertical">
                         <TextClock android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:format12Hour="hh:mm a" android:format24Hour="HH:mm"
+                            android:id="@+id/clockTime" android:format12Hour="hh:mm a" android:format24Hour="HH:mm"
                             android:textColor="@color/neon_cyan" android:textSize="26sp" android:textStyle="bold" />
                         <TextClock android:layout_width="wrap_content" android:layout_height="wrap_content"
-                            android:format12Hour="EEEE, d MMM" android:format24Hour="EEEE, d MMM"
+                            android:id="@+id/clockDate" android:format12Hour="EEEE, d MMM" android:format24Hour="EEEE, d MMM"
                             android:textColor="@color/hint" android:textSize="12sp" />
                     </LinearLayout>
                     <LinearLayout android:layout_width="0dp" android:layout_height="wrap_content"
@@ -86,7 +92,7 @@
             <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
                 android:gravity="center_vertical" android:orientation="horizontal" android:padding="12dp">
                 <TextView android:layout_width="0dp" android:layout_weight="1" android:layout_height="wrap_content"
-                    android:text="CHAT" android:textColor="@color/neon_cyan" android:textSize="18sp"
+                    android:id="@+id/chatTitle" android:text="CHAT" android:textColor="@color/neon_cyan" android:textSize="18sp"
                     android:textStyle="bold" android:letterSpacing="0.3" />
                 <androidx.appcompat.widget.SwitchCompat android:id="@+id/codeSwitch"
                     android:layout_width="wrap_content" android:layout_height="wrap_content"
@@ -125,7 +131,7 @@
 
     <!-- BOTTOM NAV -->
     <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content"
-        android:background="@drawable/bg_nav" android:gravity="center_vertical"
+        android:id="@+id/navBar" android:background="@drawable/bg_nav" android:gravity="center_vertical"
         android:orientation="horizontal" android:paddingVertical="6dp">
         <TextView android:id="@+id/navHome" style="@style/Nav" android:text="HOME" />
         <TextView android:id="@+id/navChat" style="@style/Nav" android:text="CHAT" />

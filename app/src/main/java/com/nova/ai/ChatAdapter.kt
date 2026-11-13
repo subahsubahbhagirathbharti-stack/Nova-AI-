@@ -20,7 +20,9 @@ class ChatAdapter(private val items: List<Msg>) : RecyclerView.Adapter<ChatAdapt
         val m = items[i]
         h.tv.text = m.text
         val mine = m.role == "user"
-        h.tv.setBackgroundResource(if (mine) R.drawable.bg_user else R.drawable.bg_nova)
+        val pal = Themes.active
+        h.tv.background = Themes.box(pal.panel, if (mine) pal.accent else pal.accent2, 18f, 1.2f)
+        h.tv.setTextColor(pal.text)
         (h.tv.layoutParams as LinearLayout.LayoutParams).gravity = if (mine) Gravity.END else Gravity.START
         h.tv.typeface = if (m.text.contains("```")) Typeface.MONOSPACE else Typeface.DEFAULT
     }

@@ -146,6 +146,31 @@ Keep the warm tone to one short line at most."""
         }
     }
 
+    /** Asks Gemini to write one complete HTML file for the Code Lab. */
+    suspend fun generateCode(prefs: Prefs, request: String): String = withContext(Dispatchers.IO) {
+        if (prefs.apiKey.isBlank()) return@withContext "Gemini error: पहले Settings में Gemini key डालो।"
+        try {
+            val sys = "You write complete, working single-file web apps. Reply with ONLY one full HTML document with inline CSS and JavaScript. " +
+                "No markdown fences, no explanations. No external libraries, images or network requests. Keep it under 200 lines, " +
+                "mobile friendly, dark theme. Use Hindi labels if the request is in Hindi."
+            val body = JSONObject()
+                .put("system_instruction", JSONObject().put("parts", JSONArray().put(JSONObject().put("text", sys))))
+                .put("contents", JSONArray().put(JSONObject().put("role", "user")
+                    .put("parts", JSONArray().put(JSONObject().put("text", request)))))
+                .put("generationConfig", JSONObject().put("maxOutputTokens", 4096).put("temperature", 0.4))
+            val resp = postSmart(chatModels(prefs), prefs.apiKey, body, 40000).second
+            val j = JSONObject(resp)
+            if (j.has("error")) return@withContext "Gemini error: " + j.getJSONObject("error").optString("message")
+            val ps = j.getJSONArray("candidates").getJSONObject(0).optJSONObject("content")?.optJSONArray("parts")
+                ?: return@withContext "Gemini error: खाली जवाब आया"
+            val sb = StringBuilder()
+            for (i in 0 until ps.length()) sb.append(ps.getJSONObject(i).optString("text"))
+            sb.toString().trim().removePrefix("```html").removePrefix("```").removeSuffix("```").trim()
+        } catch (e: Exception) {
+            "Gemini error: " + (e.message ?: "network")
+        }
+    }
+
     private fun tools(): JSONArray = JSONArray().put(JSONObject().put("functionDeclarations", JSONArray().put(
         JSONObject().put("name", "run_command")
             .put("description", "Run ONE command on the user's Android phone. Allowed formats: open <app> | play <song> | search <query> | alarm 7:30 am | timer 5 minutes | torch on | torch off | volume up | volume down | volume max | volume mute | call <number> | whatsapp <number> <text> | wifi settings | bluetooth settings | read screen | weather | scroll up | scroll down | auto scroll | stop scroll | click <visible text> | tap <x> <y> | swipe up | swipe down | go back | go home | lock screen | screenshot | power off (it always asks the user first) | take screenshot | power off (opens the power menu) | see screen (screenshot, you describe it) | call <contact name> | download <app> (opens Play Store and taps Install) | message <contact name> saying <text> (opens WhatsApp and sends) | type <text> | press enter | video <detailed English video prompt> | remember <fact>")

@@ -87,7 +87,7 @@ class AvatarView @JvmOverloads constructor(ctx: Context, attrs: AttributeSet? = 
             "listening" -> 0xFF00E5FF.toInt()
             "thinking" -> 0xFFFFB300.toInt()
             "speaking" -> 0xFFFF2E9A.toInt()
-            else -> 0xFF7B5CFF.toInt()
+            else -> Themes.active.accent
         }
         val hair = 0xFFFF8FC8.toInt()
         val hairDark = 0xFFFF6FB5.toInt()

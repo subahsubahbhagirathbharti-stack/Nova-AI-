@@ -284,6 +284,7 @@ object CommandRouter {
 
         emotion(t, prefs)?.let { return it }
         smallTalk(t, name)?.let { return it }
+        LocalTools.run(ctx, t, name, prefs)?.let { return it }
 
         // ---- phone screenshot (saved to gallery) ----
         if (t in setOf("take screenshot", "screenshot lo", "screenshot le lo", "स्क्रीनशॉट लो", "स्क्रीनशॉट ले लो", "screenshot")) {
@@ -425,6 +426,15 @@ object CommandRouter {
         }
         if (listOf("gana", "gaana", "song", "गाना", "गाने", "music").any { t.contains(it) } && !t.startsWith("play ")) {
             moods.firstOrNull { (keys, _) -> keys.any { t.contains(it) } }?.let { return youtube(ctx, it.second, name) }
+        }
+
+        // ---- voice: write HTML / JavaScript code and run it (Code Lab) ----
+        val htmlKey = listOf("html", "javascript", "java script", "जावा स्क्रिप्ट", "जावास्क्रिप्ट", "एचटीएमएल", "एच टी एम एल",
+            "वेबसाइट", "website", "web app", "वेब ऐप", "webpage")
+        val makeKey = listOf("likho", "लिखो", "banao", "बनाओ", "bana do", "बना दो", "write", "create", "generate", "make")
+        if (htmlKey.any { t.contains(it) } && makeKey.any { t.contains(it) } && !t.startsWith("play ")) {
+            val i = Intent(ctx, CodeLabActivity::class.java).putExtra("auto", raw).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            return start(ctx, i, "ठीक है $name, कोड लिखकर अभी चलाती हूँ 💻 थोड़ा रुको, Code Lab खुल रहा है।")
         }
 
         // ---- apps / media ----

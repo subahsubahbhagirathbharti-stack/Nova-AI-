@@ -245,6 +245,10 @@ class MainActivity : AppCompatActivity() {
         findViewById<TextView>(R.id.chipNotes).setOnClickListener { submit("read notes") }
         findViewById<TextView>(R.id.chipWeather).setOnClickListener { submit("weather") }
         findViewById<TextView>(R.id.chipToday).setOnClickListener { submit("good morning") }
+        findViewById<TextView>(R.id.chipTerminal).setOnClickListener { startActivity(Intent(this, TerminalActivity::class.java)) }
+        findViewById<TextView>(R.id.chipCode).setOnClickListener { startActivity(Intent(this, CodeLabActivity::class.java)) }
+        findViewById<TextView>(R.id.chipTheme).setOnClickListener { Themes.showPicker(this, prefs) { applyTheme() } }
+        applyTheme()
 
         findViewById<TextView>(R.id.btnSend).setOnClickListener {
             val t = input.text.toString().trim()
@@ -304,6 +308,50 @@ class MainActivity : AppCompatActivity() {
             p.add(Manifest.permission.READ_CONTACTS)
             perms.launch(p.toTypedArray())
         }
+    }
+
+    private fun applyTheme() {
+        val p = Themes.current(prefs)
+        fun tv(id: Int) = findViewById<TextView>(id)
+        findViewById<android.view.View>(R.id.rootMain).background = Themes.gradient(p)
+        tv(R.id.brandName).setTextColor(p.accent)
+        tv(R.id.brandSub).setTextColor(p.hint)
+        greeting.setTextColor(p.hint)
+        greetName.setTextColor(p.accent)
+        greetName.typeface = android.graphics.Typeface.create("serif", android.graphics.Typeface.BOLD)
+        val st = tv(R.id.status)
+        st.background = Themes.box(p.panel, p.accent, 16f, 1f)
+        st.setTextColor(p.text)
+        tapLabel.setTextColor(p.accent)
+        lastReply.setTextColor(p.text)
+        for (id in intArrayOf(R.id.chipMusic, R.id.chipStudy, R.id.chipNotes, R.id.chipWeather, R.id.chipToday,
+            R.id.chipCalc, R.id.chipTerminal, R.id.chipCode, R.id.chipTheme)) {
+            val c = tv(id)
+            c.background = Themes.box(p.panel, p.accent, 20f, 1f)
+            c.setTextColor(p.text)
+        }
+        findViewById<android.view.View>(R.id.hudCard).background = Themes.box(p.panel, p.accent, 16f, 1f)
+        tv(R.id.clockTime).setTextColor(p.accent)
+        tv(R.id.clockDate).setTextColor(p.hint)
+        tv(R.id.weather).setTextColor(p.accent)
+        tv(R.id.battery).setTextColor(p.accent2)
+        findViewById<android.view.View>(R.id.navBar).setBackgroundColor(p.panel)
+        for (id in intArrayOf(R.id.navHome, R.id.navChat, R.id.btnCam, R.id.btnSettings)) tv(id).setTextColor(p.hint)
+        mic.background = Themes.circle(p)
+        mic.setTextColor(p.bg2)
+        tv(R.id.chatTitle).setTextColor(p.accent)
+        codeSwitch.setTextColor(p.accent2)
+        val inp = findViewById<EditText>(R.id.input)
+        inp.background = Themes.box(p.panel, p.accent, 24f, 1.2f)
+        inp.setTextColor(p.text)
+        inp.setHintTextColor(p.hint)
+        for (id in intArrayOf(R.id.btnPlus, R.id.btnSend)) {
+            val b = tv(id)
+            b.background = Themes.box(p.panel, p.accent, 24f, 1.2f)
+            b.setTextColor(p.accent)
+        }
+        attachLabel.setTextColor(p.text)
+        list.adapter?.notifyDataSetChanged()
     }
 
     private fun showPage(home: Boolean) {
@@ -384,6 +432,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
+        applyTheme()
         updateGreeting()
         reload()
         ListenService.onState = { applyState(it) }

@@ -55,8 +55,12 @@ class Speaker(private val ctx: Context, private val prefs: Prefs) {
     }
     private val tts: TextToSpeech = run {
         val google = "com.google.android.tts"
+        // If the user chose SherpaTTS (Piper voices) as the phone's default engine, respect that choice.
+        val chosen = try { android.provider.Settings.Secure.getString(ctx.contentResolver, "tts_default_synth") } catch (e: Exception) { null }
         val has = try { ctx.packageManager.getPackageInfo(google, 0); true } catch (e: Exception) { false }
-        if (has) TextToSpeech(ctx, ttsListener, google) else TextToSpeech(ctx, ttsListener)
+        if (chosen == "org.woheller69.ttsengine") TextToSpeech(ctx, ttsListener)
+        else if (has) TextToSpeech(ctx, ttsListener, google)
+        else TextToSpeech(ctx, ttsListener)
     }
     private var track: AudioTrack? = null
     private var player: MediaPlayer? = null

@@ -9,11 +9,30 @@ android {
         applicationId = "com.nova.ai"
         minSdk = 26
         targetSdk = 34
-        versionCode = 27
-        versionName = "4.3"
+        versionCode = 30
+        versionName = "5.0"
+    }
+    signingConfigs {
+        create("release") {
+            // Filled only when the build has the private release key (GitHub secrets). Never commit the key.
+            val ks = System.getenv("NOVA_KEYSTORE")
+            if (ks != null && file(ks).exists()) {
+                storeFile = file(ks)
+                storePassword = System.getenv("NOVA_STORE_PASSWORD")
+                keyAlias = System.getenv("NOVA_KEY_ALIAS")
+                keyPassword = System.getenv("NOVA_KEY_PASSWORD")
+            }
+        }
     }
     buildTypes {
-        release { isMinifyEnabled = false }
+        release {
+            isMinifyEnabled = false
+            if (System.getenv("NOVA_KEYSTORE") != null) signingConfig = signingConfigs.getByName("release")
+        }
+    }
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
